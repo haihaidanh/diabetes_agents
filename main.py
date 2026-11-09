@@ -39,9 +39,12 @@ def main(argv):
         out = run_case(" ".join(rest))
         print("\n".join(f"[{t['agent']}] {t['decision']}" for t in out["trace"]), "\n")
         print(out["answer"])
+    # elif cmd == "ui":
+    #     from ui.gradio_app import launch
+    #     launch()
     elif cmd == "ui":
-        from ui.gradio_app import launch
-        launch()
+        from ui.web_app import launch
+        launch(tunnel="--tunnel" in rest, block=True)
     elif cmd == "eval":
         from evaluation.run_ablation import main as f
         f()
