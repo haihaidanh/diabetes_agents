@@ -4,6 +4,7 @@ Dữ liệu nạp lười (lần gọi đầu tiên) từ artifacts/kb.
 """
 import json
 import pickle
+import os
 
 import numpy as np
 
@@ -17,7 +18,12 @@ _S: dict = {}
 def _load() -> dict:
     if not _S:
         kb = config.KB_DIR
-        _S["G"] = pickle.load(open(kb / "kg.pkl", "rb"))
+        # _S["G"] = pickle.load(open(kb / "kg.pkl", "rb"))
+        if os.getenv("KG_BACKEND", "networkx") == "neo4j":
+            from .neo4j_store import Neo4jGraph
+            _S["G"] = Neo4jGraph()
+        else:
+            _S["G"] = pickle.load(open(kb / "kg.pkl", "rb"))
         _S["CH"] = read_jsonl(kb / "chunks_final.jsonl")
         z = np.load(kb / "emb.npz")
         _S["E_ENT"], _S["E_CH"] = z["E_ent"], z["E_chunk"]

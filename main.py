@@ -31,6 +31,9 @@ def main(argv):
     elif cmd == "kg":
         from kb.build_kg import main as f
         f(embed_merge="--no-embed" not in rest)
+    elif cmd == "neo4j-push":
+        from kb.neo4j_store import push
+        push()
     elif cmd == "ask":
         from agents.graph import run_case
         out = run_case(" ".join(rest))

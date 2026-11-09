@@ -13,4 +13,5 @@ ollama
 langgraph
 gradio
 pytest
+neo4j
 # tuỳ chọn: torch (MLP)
