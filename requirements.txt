@@ -1,0 +1,16 @@
+numpy
+pandas
+scikit-learn
+xgboost
+shap
+joblib
+matplotlib
+networkx
+beautifulsoup4
+lxml
+pydantic
+ollama
+langgraph
+gradio
+pytest
+# tuỳ chọn: torch (MLP)

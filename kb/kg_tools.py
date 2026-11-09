@@ -1,0 +1,119 @@
+"""Công cụ truy xuất GraphRAG trên Knowledge Graph NetworkX + embedding bge-m3.
+
+Dữ liệu nạp lười (lần gọi đầu tiên) từ artifacts/kb.
+"""
+import json
+import pickle
+
+import numpy as np
+
+import config
+from common.embed import embed
+from common.text import norm, read_jsonl
+
+_S: dict = {}
+
+
+def _load() -> dict:
+    if not _S:
+        kb = config.KB_DIR
+        _S["G"] = pickle.load(open(kb / "kg.pkl", "rb"))
+        _S["CH"] = read_jsonl(kb / "chunks_final.jsonl")
+        z = np.load(kb / "emb.npz")
+        _S["E_ENT"], _S["E_CH"] = z["E_ent"], z["E_chunk"]
+        _S["ENTS"] = json.load(open(kb / "ents.json", encoding="utf-8"))
+    return _S
+
+
+def graph():
+    return _load()["G"]
+
+
+def _q(text: str) -> np.ndarray:
+    return embed([text])[0]
+
+
+def link_entities(text: str, top_k: int = 5) -> list:
+    """Tìm thực thể trong KG khớp với đoạn văn (khớp tên + ngữ nghĩa)."""
+    s_, G = _load(), graph()
+    n, out = norm(text), {}
+    for e in s_["ENTS"]:
+        k = norm(e)
+        if len(k) >= 4 and k in n:
+            out[e] = 1.0
+    s = s_["E_ENT"] @ _q(text)
+    for i in np.argsort(-s)[:top_k]:
+        out.setdefault(s_["ENTS"][i], float(s[i]))
+    top = sorted(out.items(), key=lambda x: -x[1])[:top_k]
+    return [{"name": e, "type": G.nodes[e]["type"], "score": round(sc, 3)} for e, sc in top]
+
+
+def neighbors(entity: str, relation: str = "", direction: str = "out", limit: int = 12) -> dict:
+    """Các quan hệ lân cận của một thực thể (direction: out | in), kèm câu trích và URL."""
+    G = graph()
+    if entity not in G:
+        return {"error": f"không có thực thể '{entity}'"}
+    it = G.out_edges(entity, data=True) if direction == "out" else G.in_edges(entity, data=True)
+    rows = [{"subject": a, "relation": d["relation"], "object": b, "evidence": d["evidence"], "url": d["url"]}
+            for a, b, d in it if d["relation"] != "MAPS_TO" and (not relation or d["relation"] == relation)]
+    return {"entity": entity, "edges": rows[:limit]}
+
+
+def drug_info(drug: str) -> dict:
+    """Nhóm thuốc, chỉ định, tác dụng phụ, chống chỉ định của một thuốc (KG không có liều)."""
+    G = graph()
+    name = next((e for e in _load()["ENTS"] if G.nodes[e]["type"] == "Drug" and norm(drug) in norm(e)), None)
+    if not name:
+        return {"error": f"không có thuốc '{drug}'"}
+    info = {"drug": name}
+    for key, rel in [("side_effects", "HAS_SIDE_EFFECT"), ("contraindications", "CONTRAINDICATED_IN"), ("class", "BELONGS_TO")]:
+        info[key] = neighbors(name, rel, "out", 8)["edges"]
+    info["indications"] = neighbors(name, "TREATED_BY", "in", 5)["edges"]
+    return info
+
+
+OPS = {">=": lambda v, a, b: v >= a, ">": lambda v, a, b: v > a, "<=": lambda v, a, b: v <= a,
+       "<": lambda v, a, b: v < a, "range": lambda v, a, b: a <= v <= b}
+SYM = {">=": "≥", ">": ">", "<=": "≤", "<": "<"}
+LAB = {"HbA1c_level": {"HbA1c"}, "blood_glucose_level": {"Đường huyết lúc đói", "Đường huyết bất kỳ"}}
+
+
+def condition_text(d: dict) -> str:
+    u = {"mg/dl": "mg/dL", "mmol/l": "mmol/L"}.get(d["unit"], d["unit"])
+    f = lambda x: f"{x:g}".replace(".", ",")
+    if d["op"] == "range":
+        return f"{f(d['value'])}–{f(d['value_max'])} {u}"
+    return f"{SYM[d['op']]} {f(d['value'])} {u}"
+
+
+def explain_feature(feature: str, value: float = None, unit: str = "") -> dict:
+    """Nối một đặc trưng của mô hình tới tri thức; với HbA1c/đường huyết thì đối chiếu giá trị với ngưỡng chẩn đoán."""
+    G = graph()
+    if feature not in G:
+        return {"error": f"không có đặc trưng '{feature}'"}
+    mapped = [b for _, b, d in G.out_edges(feature, data=True) if d["relation"] == "MAPS_TO"]
+    res = {"feature": feature, "mapped": mapped[:6]}
+    if feature in LAB and value is not None:
+        v = float(value)
+        if feature == "blood_glucose_level" and unit.lower().startswith("mmol"):
+            v *= 18.016                                           # mmol/L -> mg/dL
+        checks = []
+        for a, b, d in G.edges(data=True):
+            if "op" in d and b in LAB[feature]:
+                checks.append({"disease": a, "test": b, "condition": condition_text(d), "value": round(v, 2),
+                               "met": bool(OPS[d["op"]](v, d["value"], d.get("value_max"))),
+                               "assumption": "chỉ đúng nếu mẫu đo lúc đói" if b == "Đường huyết lúc đói" else "",
+                               "evidence": d["evidence"], "url": d["url"]})
+        res["lab_checks"] = checks
+    else:
+        res["risk_links"] = [{"subject": a, "object": b, "evidence": d["evidence"], "url": d["url"]}
+                             for b in mapped[:6] for a, _, d in G.in_edges(b, data=True) if d["relation"] == "HAS_RISK_FACTOR"][:6]
+    return res
+
+
+def search_chunks(query: str, top_k: int = 4) -> list:
+    """Tìm đoạn văn gốc theo ngữ nghĩa khi đồ thị chưa có thông tin."""
+    s_ = _load()
+    s = s_["E_CH"] @ _q(query)
+    return [{"text": s_["CH"][i]["text"][:700], "section": s_["CH"][i]["section"], "page": s_["CH"][i]["page"],
+             "url": s_["CH"][i]["url"], "score": round(float(s[i]), 3)} for i in np.argsort(-s)[:top_k]]

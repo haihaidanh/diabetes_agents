@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Cache and logs
+.pytest_cache/
+.mypy_cache/
+*.log
+
+# Environment secrets
+.env
+.env.*
+
+# Model artifacts
+artifacts/
+
+# Temporary files
+tmp/
+temp/
