@@ -3,6 +3,7 @@ import re
 
 from pydantic import BaseModel
 
+import config
 from common.text import fmt, num, pct
 from kb import kg_tools as K
 from ml import predictor
@@ -193,7 +194,8 @@ def risk_node(state):
                 p[k] = v
                 imputed.append(k)
     log = llm.run_tools("Bạn là Risk Agent. Gọi predict_risk trước, sau đó explain_risk. what_if chỉ khi người dùng hỏi về thay đổi BMI.",
-                        "Hãy dự đoán và giải thích nguy cơ của người dùng.", make_tools(p), max_steps=4)
+                        "Hãy dự đoán và giải thích nguy cơ của người dùng.", make_tools(p),
+                        max_steps=config.LLM_TOOL_STEPS)
     got = {c["tool"]: c["result"] for c in log if "error" not in c["result"]}
     pred = got.get("predict_risk") or predictor.predict_risk(p)
     expl = got.get("explain_risk") or predictor.explain_risk(p)
@@ -254,7 +256,8 @@ def knowledge_node(state):
         topic += "\nYếu tố ảnh hưởng nguy cơ: " + ", ".join(f["feature"] for f in r["factors"][:3])
     hint = "" if rnd == 1 else f"\nVòng {rnd}: bằng chứng chưa đủ ({len(ev)}). Dùng từ khóa khác, thêm search_chunks hoặc neighbors của thực thể liên quan."
     tools = [K.link_entities, K.neighbors, K.drug_info, K.explain_feature, K.search_chunks] if kg_mode else [K.search_chunks]
-    log = llm.run_tools(KSYS if kg_mode else KSYS_RAG, topic + hint, tools, max_steps=5)
+    log = llm.run_tools(KSYS if kg_mode else KSYS_RAG, topic + hint, tools,
+                        max_steps=config.LLM_TOOL_STEPS)
     rows = [row for c in log if "error" not in c["result"] for row in harvest(c["result"])]
     if rnd == 1 and not rows:                            # dự phòng khi model không gọi công cụ
         if kg_mode:

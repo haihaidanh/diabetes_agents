@@ -9,6 +9,20 @@ pip install -r requirements.txt
 ollama serve &            # Kaggle: phải chạy lại mỗi phiên
 ollama pull qwen3:8b && ollama pull bge-m3
 ```
+Mặc định hệ thống chạy chế độ nhanh (`FAST_MODE=1`): bỏ vòng Critic LLM, dùng RAG,
+giảm số vòng gọi tool và giữ model trong RAM. Hệ thống dùng `qwen3:8b`. Nếu ưu tiên
+tốc độ hơn nữa, có thể dùng model nhỏ hơn:
+```powershell
+ollama pull qwen2.5:3b
+$env:LLM_MODEL = "qwen2.5:3b"
+$env:FAST_MODE = "1"
+python main.py ui
+```
+Các biến `LLM_NUM_CTX` (mặc định `2048` ở chế độ nhanh), `LLM_NUM_PREDICT`
+(mặc định `512`) và `LLM_KEEP_ALIVE` (mặc định `30m`) điều chỉnh độ dài ngữ cảnh,
+độ dài đầu ra và
+thời gian giữ model trong RAM để tránh nạp lại giữa các câu hỏi.
+Đặt `FAST_MODE=0` để khôi phục cấu hình đầy đủ với KG và Critic.
 Đặt dữ liệu: `data/diabetes.csv` (hoặc biến môi trường `DIABETES_CSV`) và các trang HTML đã lưu vào `data/raw_html/`.
 
 ## Chạy theo thứ tự

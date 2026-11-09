@@ -13,7 +13,16 @@ def _chat(messages, tools=None, think=False):
     global CALLS
     import ollama
     CALLS += 1
-    kw = dict(model=config.LLM_MODEL, messages=messages, options={"temperature": 0.2, "num_ctx": 8192})
+    kw = dict(
+        model=config.LLM_MODEL,
+        messages=messages,
+        keep_alive=config.LLM_KEEP_ALIVE,
+        options={
+            "temperature": 0.2,
+            "num_ctx": config.LLM_NUM_CTX,
+            "num_predict": config.LLM_NUM_PREDICT,
+        },
+    )
     if tools:
         kw["tools"] = tools
     try:
@@ -31,8 +40,9 @@ def text(system: str, user: str) -> str:
     return strip_think(r.message.content)
 
 
-def submit(system: str, user: str, cls, retries: int = 2):
+def submit(system: str, user: str, cls, retries: int | None = None):
     """Đầu ra có cấu trúc qua công cụ submit_result, kiểm bằng Pydantic, hỏi lại tối đa `retries` lần."""
+    retries = config.LLM_SUBMIT_RETRIES if retries is None else retries
     tool = {"type": "function", "function": {"name": "submit_result", "description": "Nộp kết quả.",
                                              "parameters": cls.model_json_schema()}}
     for _ in range(retries + 1):
