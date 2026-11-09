@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Trợ lý đánh giá nguy cơ tiểu đường</title>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+    <style>
+        :root {
+            --bg: #f4f7fb;
+            --card: #fff;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --line: #e5eaf2;
+            --brand: #0d9488;
+            --brand2: #2563eb;
+            --red: #ef4444;
+            --green: #22c55e;
+            --r: 16px
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+            font-size: 15px;
+            line-height: 1.6
+        }
+
+        .top {
+            background: linear-gradient(120deg, #0d9488, #2563eb);
+            color: #fff;
+            padding: 26px 20px;
+            text-align: center
+        }
+
+        .top h1 {
+            margin: 0;
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: -.01em
+        }
+
+        .wrap {
+            max-width: 1180px;
+            margin: -18px auto 30px;
+            padding: 0 16px;
+            display: grid;
+            grid-template-columns: 330px 1fr;
+            gap: 18px;
+            align-items: start
+        }
+
+        @media(max-width:860px) {
+            .wrap {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: var(--r);
+            padding: 18px;
+            box-shadow: 0 4px 18px rgba(15, 23, 42, .06)
+        }
+
+        .card h2 {
+            margin: 0 0 12px;
+            font-size: .95rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .card h2 small {
+            font-weight: 400;
+            color: var(--muted)
+        }
+
+        .stack {
+            display: flex;
+            flex-direction: column;
+            gap: 18px
+        }
+
+        label.f {
+            display: block;
+            font-size: .8rem;
+            font-weight: 500;
+            color: var(--muted);
+            margin: 12px 0 5px
+        }
+
+        .row2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px
+        }
+
+        input[type=number],
+        select,
+        textarea {
+            width: 100%;
+            font: inherit;
+            color: var(--ink);
+            background: #f8fafc;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px 12px;
+            outline: none;
+            transition: .15s
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--brand);
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, .15)
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 92px
+        }
+
+        .seg {
+            display: flex;
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 3px;
+            gap: 2px
+        }
+
+        .seg label {
+            flex: 1;
+            margin: 0
+        }
+
+        .seg input {
+            display: none
+        }
+
+        .seg span {
+            display: block;
+            text-align: center;
+            padding: 7px 4px;
+            border-radius: 9px;
+            font-size: .84rem;
+            cursor: pointer;
+            color: var(--muted);
+            transition: .15s
+        }
+
+        .seg input:checked+span {
+            background: #fff;
+            color: var(--brand);
+            font-weight: 600;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .1)
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px
+        }
+
+        button {
+            font: inherit;
+            border: 0;
+            border-radius: 12px;
+            padding: 11px 18px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: .15s
+        }
+
+        #send {
+            flex: 1;
+            color: #fff;
+            background: linear-gradient(120deg, #0d9488, #2563eb)
+        }
+
+        #send:hover {
+            filter: brightness(1.08)
+        }
+
+        #send:disabled {
+            opacity: .6;
+            cursor: wait
+        }
+
+        #reset {
+            background: #eef2f7;
+            color: var(--ink)
+        }
+
+        #reset:hover {
+            background: #e2e8f0
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px
+        }
+
+        .chip {
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 400;
+            font-size: .82rem;
+            padding: 6px 12px;
+            border-radius: 99px;
+            border: 1px solid var(--line)
+        }
+
+        .chip:hover {
+            background: #e0f2f1;
+            border-color: var(--brand);
+            color: var(--brand)
+        }
+
+        .hide {
+            display: none !important
+        }
+
+        .answer {
+            font-size: 1rem
+        }
+
+        .answer p {
+            margin: .4em 0
+        }
+
+        .answer ul,
+        .answer ol {
+            padding-left: 22px
+        }
+
+        .err {
+            color: #b91c1c;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            padding: 12px
+        }
+
+        .risk {
+            border-radius: 14px;
+            padding: 18px;
+            border: 1px solid
+        }
+
+        .risk.high {
+            background: #fef2f2;
+            border-color: #fecaca
+        }
+
+        .risk.low {
+            background: #f0fdf4;
+            border-color: #bbf7d0
+        }
+
+        .pct {
+            font-size: 2.6rem;
+            font-weight: 700;
+            line-height: 1
+        }
+
+        .high .pct,
+        .high .lab {
+            color: #b91c1c
+        }
+
+        .low .pct,
+        .low .lab {
+            color: #15803d
+        }
+
+        .lab {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-left: 10px
+        }
+
+        .meta {
+            font-size: .82rem;
+            color: var(--muted);
+            margin: 8px 0 4px
+        }
+
+        .meter {
+            position: relative;
+            height: 10px;
+            background: rgba(0, 0, 0, .08);
+            border-radius: 99px;
+            margin: 14px 0 6px
+        }
+
+        .meter i {
+            display: block;
+            height: 100%;
+            border-radius: 99px;
+            background: var(--green)
+        }
+
+        .high .meter i {
+            background: var(--red)
+        }
+
+        .meter b {
+            position: absolute;
+            top: -5px;
+            width: 2px;
+            height: 20px;
+            background: var(--ink)
+        }
+
+        .legend {
+            font-size: .75rem;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between
+        }
+
+        .shap h3 {
+            font-size: .85rem;
+            margin: 18px 0 6px
+        }
+
+        .sr {
+            display: grid;
+            grid-template-columns: 40% 1fr 54px;
+            gap: 10px;
+            align-items: center;
+            margin: 7px 0;
+            font-size: .86rem
+        }
+
+        .sr small {
+            display: block;
+            color: var(--muted)
+        }
+
+        .bar {
+            height: 8px;
+            background: rgba(0, 0, 0, .07);
+            border-radius: 99px;
+            overflow: hidden
+        }
+
+        .bar i {
+            display: block;
+            height: 100%;
+            border-radius: 99px
+        }
+
+        .pos {
+            background: var(--red)
+        }
+
+        .neg {
+            background: var(--green)
+        }
+
+        .sv {
+            text-align: right;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums
+        }
+
+        .whatif {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px dashed rgba(0, 0, 0, .2)
+        }
+
+        details {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 0 14px;
+            background: #fafcff
+        }
+
+        details+details {
+            margin-top: 10px
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: 600;
+            padding: 12px 0;
+            list-style: none
+        }
+
+        summary::-webkit-details-marker {
+            display: none
+        }
+
+        summary:before {
+            content: '▸';
+            display: inline-block;
+            margin-right: 8px;
+            transition: .15s
+        }
+
+        details[open] summary:before {
+            transform: rotate(90deg)
+        }
+
+        details .body {
+            padding: 0 0 14px;
+            font-size: .88rem
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 6px 0 12px;
+            font-size: .85rem
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 7px 8px;
+            border-bottom: 1px solid var(--line)
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 500
+        }
+
+        blockquote {
+            margin: 6px 0;
+            padding: 6px 12px;
+            border-left: 3px solid var(--brand);
+            background: #f0fdfa;
+            color: #334155;
+            border-radius: 0 8px 8px 0
+        }
+
+        .ev {
+            margin-bottom: 14px
+        }
+
+        .ev a {
+            color: var(--brand2)
+        }
+
+        .path {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 8px
+        }
+
+        .path span {
+            background: #e0f2fe;
+            color: #075985;
+            padding: 3px 10px;
+            border-radius: 99px;
+            font-size: .8rem;
+            font-weight: 500
+        }
+
+        .spin {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #fff6;
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: s .7s linear infinite;
+            vertical-align: -2px;
+            margin-right: 6px
+        }
+
+        @keyframes s {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .note {
+            text-align: center;
+            color: #94a3b8;
+            font-size: .8rem;
+            padding: 0 16px 24px
+        }
+    </style>
+</head>
+
+<body>
+    <div class="top">
+        <h1>🩺 Trợ lý đánh giá nguy cơ tiểu đường</h1>
+    </div>
+
+    <div class="wrap">
+        <!-- Hồ sơ -->
+        <div class="card">
+            <h2>📋 Hồ sơ sức khỏe <small>(không bắt buộc)</small></h2>
+
+            <label class="f" style="margin-top:0">Giới tính</label>
+            <div class="seg">
+                <label><input type="radio" name="gender" value="" checked><span>Không chọn</span></label>
+                <label><input type="radio" name="gender" value="Female"><span>Nữ</span></label>
+                <label><input type="radio" name="gender" value="Male"><span>Nam</span></label>
+            </div>
+
+            <div class="row2">
+                <div><label class="f">Tuổi</label><input type="number" id="age" min="0" max="120" placeholder="VD: 52">
+                </div>
+                <div><label class="f">BMI</label><input type="number" id="bmi" min="0" step="0.1" placeholder="VD: 28">
+                </div>
+            </div>
+            <div class="row2">
+                <div><label class="f">HbA1c (%)</label><input type="number" id="hba1c" min="0" step="0.1"
+                        placeholder="VD: 6.7"></div>
+                <div><label class="f">Đường huyết (mg/dL)</label><input type="number" id="glu" min="0"
+                        placeholder="VD: 150"></div>
+            </div>
+
+            <label class="f">Tăng huyết áp</label>
+            <div class="seg">
+                <label><input type="radio" name="ht" value="" checked><span>Không chọn</span></label>
+                <label><input type="radio" name="ht" value="1"><span>Có</span></label>
+                <label><input type="radio" name="ht" value="0"><span>Không</span></label>
+            </div>
+
+            <label class="f">Bệnh tim</label>
+            <div class="seg">
+                <label><input type="radio" name="hd" value="" checked><span>Không chọn</span></label>
+                <label><input type="radio" name="hd" value="1"><span>Có</span></label>
+                <label><input type="radio" name="hd" value="0"><span>Không</span></label>
+            </div>
+
+            <label class="f">Tiền sử hút thuốc</label>
+            <select id="smoke">
+                <option value="">Không rõ</option>
+                <option value="never">Chưa bao giờ</option>
+                <option value="former">Đã bỏ</option>
+                <option value="current">Đang hút</option>
+            </select>
+        </div>
+
+        <!-- Hỏi đáp + kết quả -->
+        <div class="stack">
+            <div class="card">
+                <h2>💬 Câu hỏi</h2>
+                <textarea id="q"
+                    placeholder="VD: Tôi nữ 52 tuổi, BMI 28, HbA1c 6.7%... nguy cơ thế nào? / Metformin có tác dụng phụ gì?"></textarea>
+                <div class="actions">
+                    <button id="send">Gửi</button>
+                    <button id="reset">Làm mới</button>
+                </div>
+                <div class="chips" id="chips"></div>
+            </div>
+
+            <div class="card hide" id="cAns">
+                <h2>✅ Câu trả lời</h2>
+                <div class="answer" id="ans"></div>
+            </div>
+            <div class="card hide" id="cRisk">
+                <h2>📊 Nguy cơ &amp; yếu tố ảnh hưởng</h2>
+                <div id="risk"></div>
+            </div>
+            <div class="hide" id="more">
+                <details id="dEv">
+                    <summary>📚 Bằng chứng</summary>
+                    <div class="body" id="ev"></div>
+                </details>
+                <details id="dTr">
+                    <summary>🧭 Đường đi của agent</summary>
+                    <div class="body" id="tr"></div>
+                </details>
+            </div>
+        </div>
+    </div>
+    <div class="note">⚠️ Kết quả chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ.</div>
+
+    <script>
+        const $ = id => document.getElementById(id);
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const num = id => { const v = $(id).value; return v === '' ? null : Number(v); };
+        const pick = n => document.querySelector(`input[name=${n}]:checked`).value;
+        const flag = n => { const v = pick(n); return v === '' ? null : Number(v); };
+        let patient = {};
+
+        const EXAMPLES = [
+            "Triệu chứng của bệnh tiểu đường tuýp 2 là gì?",
+            "Metformin có tác dụng phụ gì?",
+            "Tôi nam 50 tuổi, BMI 29, không tăng huyết áp, không bệnh tim. Nguy cơ thế nào?",
+            "Tôi là nữ, 52 tuổi, cao 1m58 nặng 70kg, có cao huyết áp, không bệnh tim, không hút thuốc. HbA1c 6.7%, đường huyết 150 mg/dL. Nguy cơ của tôi?"
+        ];
+        EXAMPLES.forEach(t => {
+            const b = document.createElement('button');
+            b.className = 'chip'; b.textContent = t.length > 52 ? t.slice(0, 50) + '…' : t; b.title = t;
+            b.onclick = () => { $('q').value = t; $('q').focus(); };
+            $('chips').appendChild(b);
+        });
+
+        function renderRisk(r) {
+            const box = $('risk'), card = $('cRisk');
+            if (!r) { card.classList.add('hide'); return; }
+            const p = r.probability * 100, th = r.threshold * 100, high = r.probability >= r.threshold;
+            const fs = r.factors || [];
+            const m = Math.max(1e-9, ...fs.map(f => Math.abs(f.shap)));
+            const rows = fs.map(f => `
+    <div class="sr">
+      <div>${esc(f.feature)} = ${esc(f.value)}<small>${esc(f.direction)}</small></div>
+      <div class="bar"><i class="${f.shap > 0 ? 'pos' : 'neg'}" style="width:${Math.max(5, Math.abs(f.shap) / m * 100)}%"></i></div>
+      <div class="sv">${f.shap > 0 ? '+' : ''}${f.shap.toFixed(2)}</div>
+    </div>`).join('');
+            const wi = r.what_if ? `<div class="whatif"><b>What-if:</b> ${(r.what_if.before * 100).toFixed(1)}% → <b>${(r.what_if.after * 100).toFixed(1)}%</b></div>` : '';
+            box.innerHTML = `
+    <div class="risk ${high ? 'high' : 'low'}">
+      <div><span class="pct">${p.toFixed(1)}%</span><span class="lab">${esc(r.label)}</span></div>
+      <div class="meta">Mô hình <code>${esc(r.model)}</code> · ngưỡng phân loại ${th.toFixed(1)}%</div>
+      <div class="meter"><i style="width:${Math.min(p, 100)}%"></i><b style="left:${Math.min(th, 100)}%"></b></div>
+      <div class="legend"><span>0%</span><span>ngưỡng ${th.toFixed(1)}%</span><span>100%</span></div>
+      <div class="shap"><h3>Yếu tố ảnh hưởng (SHAP) <small style="font-weight:400;color:#64748b">· đỏ: tăng nguy cơ, xanh: giảm nguy cơ</small></h3>${rows}</div>
+      ${wi}
+    </div>`;
+            card.classList.remove('hide');
+        }
+
+        function renderEvidence(d) {
+            let h = '';
+            if ((d.lab_checks || []).length) {
+                h += '<b>Đối chiếu xét nghiệm với ngưỡng trong KG</b><table><tr><th>Xét nghiệm</th><th>Giá trị</th><th>Ngưỡng</th><th>Kết quả</th></tr>' +
+                    d.lab_checks.map(c => `<tr><td>${esc(c.test)} (${esc(c.disease)})</td><td>${esc(c.value)}</td><td>${esc(c.condition)}</td><td>${c.met ? '✅ đạt' : '—'}</td></tr>`).join('') + '</table>';
+            }
+            (d.evidence || []).forEach(e => {
+                const name = String(e.url || '').split('/').pop();
+                h += `<div class="ev"><b>[${esc(e.id)}]</b> ${esc(e.claim)}<blockquote>${esc(e.quote)}</blockquote><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(name)}</a></div>`;
+            });
+            $('ev').innerHTML = h || 'Chưa có bằng chứng.';
+        }
+
+        function renderTrace(tr) {
+            tr = tr || [];
+            const tot = tr.reduce((a, t) => a + t.sec, 0), llm = tr.reduce((a, t) => a + t.llm, 0);
+            $('tr').innerHTML = `
+    <div class="path">${tr.map((t, i) => (i ? '→ ' : '') + `<span>${esc(t.agent)}</span>`).join(' ')}</div>
+    <div style="color:#64748b;margin-bottom:6px">Tổng ${tot.toFixed(1)}s · ${llm} lượt LLM</div>
+    <table><tr><th>Agent</th><th>Quyết định</th><th>Thời gian</th><th>LLM</th></tr>
+    ${tr.map(t => `<tr><td>${esc(t.agent)}</td><td>${esc(t.decision)}</td><td>${esc(t.sec)}s</td><td>${esc(t.llm)}</td></tr>`).join('')}</table>`;
+        }
+
+        async function send() {
+            const btn = $('send');
+            btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Đang phân tích…';
+            const body = {
+                question: $('q').value, patient,
+                form: {
+                    gender: pick('gender'), age: num('age'), bmi: num('bmi'), hypertension: flag('ht'),
+                    heart_disease: flag('hd'), smoking_history: $('smoke').value, hba1c: num('hba1c'), glu: num('glu')
+                }
+            };
+            try {
+                const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const d = await res.json();
+                $('cAns').classList.remove('hide');
+                if (d.error) {
+                    $('ans').innerHTML = `<div class="err">⚠️ ${esc(d.error)}</div>`;
+                    $('cRisk').classList.add('hide'); $('more').classList.add('hide');
+                } else {
+                    patient = d.patient || patient;
+                    $('ans').innerHTML = DOMPurify.sanitize(marked.parse(d.answer || ''));
+                    renderRisk(d.risk); renderEvidence(d); renderTrace(d.trace);
+                    $('more').classList.remove('hide');
+                    $('cAns').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            } catch (e) {
+                $('cAns').classList.remove('hide');
+                $('ans').innerHTML = `<div class="err">⚠️ Lỗi kết nối: ${esc(e)}</div>`;
+            }
+            btn.disabled = false; btn.textContent = 'Gửi';
+        }
+
+        function resetAll() {
+            patient = {};
+            $('q').value = '';
+            ['age', 'bmi', 'hba1c', 'glu'].forEach(i => $(i).value = '');
+            $('smoke').value = '';
+            ['gender', 'ht', 'hd'].forEach(n => document.querySelector(`input[name=${n}][value=""]`).checked = true);
+            ['cAns', 'cRisk', 'more'].forEach(i => $(i).classList.add('hide'));
+        }
+
+        $('send').onclick = send;
+        $('reset').onclick = resetAll;
+        $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
+    </script>
+</body>
+
+</html>
