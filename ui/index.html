@@ -254,9 +254,15 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            max-height: 620px;
+            min-height: 180px;
+            max-height: 560px;
             overflow-y: auto;
-            padding: 4px 2px
+            padding: 4px 2px 16px
+        }
+
+        .chat-composer {
+            border-top: 1px solid var(--line);
+            padding-top: 14px
         }
 
         .message {
@@ -628,20 +634,18 @@
 
         <!-- Hỏi đáp + kết quả -->
         <div class="stack">
-            <div class="card">
-                <h2>💬 Câu hỏi</h2>
-                <textarea id="q"
-                    placeholder="VD: Tôi nữ 52 tuổi, BMI 28, HbA1c 6.7%... nguy cơ thế nào? / Metformin có tác dụng phụ gì?"></textarea>
-                <div class="actions">
-                    <button id="send">Gửi</button>
-                    <button id="reset">Làm mới</button>
-                </div>
-                <div class="chips" id="chips"></div>
-            </div>
-
-            <div class="card hide" id="cAns">
+            <div class="card" id="cAns">
                 <h2>💬 Cuộc trò chuyện</h2>
                 <div class="chat-log" id="chatLog"></div>
+                <div class="chat-composer">
+                    <textarea id="q"
+                        placeholder="Nhập câu hỏi của bạn..."></textarea>
+                    <div class="actions">
+                        <button id="send">Gửi</button>
+                        <button id="reset">Làm mới</button>
+                    </div>
+                    <div class="chips" id="chips"></div>
+                </div>
             </div>
             <div class="card hide" id="cRisk">
                 <h2>📊 Nguy cơ &amp; yếu tố ảnh hưởng</h2>
@@ -746,7 +750,6 @@
                 return;
             }
             btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Đang phân tích…';
-            $('cAns').classList.remove('hide');
             $('chatLog').insertAdjacentHTML('beforeend',
                 `<div class="message user">${esc(question)}</div>`);
             const typingId = `typing-${Date.now()}`;
@@ -793,7 +796,7 @@
             ['age', 'bmi', 'hba1c', 'glu'].forEach(i => $(i).value = '');
             $('smoke').value = '';
             ['gender', 'ht', 'hd'].forEach(n => document.querySelector(`input[name=${n}][value=""]`).checked = true);
-            ['cAns', 'cRisk', 'more'].forEach(i => $(i).classList.add('hide'));
+            ['cRisk', 'more'].forEach(i => $(i).classList.add('hide'));
         }
 
         $('send').onclick = send;
