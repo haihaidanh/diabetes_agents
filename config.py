@@ -12,7 +12,7 @@ ML_DIR = ARTIFACTS / "ml"      # model_full.pkl, model_screening.pkl, metrics.cs
 KB_DIR = ARTIFACTS / "kb"      # chunks_final.jsonl, kg.pkl, emb.npz, ents.json ...
 EVAL_DIR = ARTIFACTS / "eval"  # kết quả ablation
 
-LLM_MODEL = os.getenv("LLM_MODEL", "qwen3:8b")
+LLM_MODEL = os.getenv("LLM_MODEL", "qwen3:4b")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3")
 FAST_MODE = os.getenv("FAST_MODE", "1").lower() not in ("0", "false", "no")
 LLM_NUM_CTX = int(os.getenv("LLM_NUM_CTX", "2048" if FAST_MODE else "4096"))

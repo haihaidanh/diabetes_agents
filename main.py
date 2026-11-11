@@ -22,6 +22,9 @@ def main(argv):
     elif cmd == "parse":
         from kb.parse_html import main as f
         f()
+    elif cmd == "parse-pdf":
+        from kb.parse_pdf import main as f
+        f()
     elif cmd == "extract":
         from kb.extract import main as f
         f(skip_llm="--skip-llm" in rest)

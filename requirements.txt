@@ -14,4 +14,6 @@ langgraph
 gradio
 pytest
 neo4j
+pypdf
+tqdm
 # tuỳ chọn: torch (MLP)
