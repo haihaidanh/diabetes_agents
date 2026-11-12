@@ -17,8 +17,7 @@ from .critic import critic_node
 from .settings import SETTINGS
 from .state import MAX_CRITIC, CaseState, traced
 
-DISCLAIMER = ("⚠️ Kết quả chỉ mang tính tham khảo, được tạo tự động từ mô hình học máy và thông tin của Nhà thuốc Long Châu; "
-              "không thay thế chẩn đoán của bác sĩ.")
+DISCLAIMER = "⚠️ Kết quả chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ."
 INTERNAL_FEEDBACK = re.compile(
     r"(?:^|\n)\s*(?:lỗi cần sửa|các lỗi phải sửa|các lỗi cần sửa)\s*:?.*$",
     re.IGNORECASE | re.MULTILINE,
