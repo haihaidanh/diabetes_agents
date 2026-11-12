@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980">
+  <defs>
+    <linearGradient id="header" x1="0" x2="1">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#0f172a" flood-opacity=".14"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <style>
+      .title{font:700 29px Arial,sans-serif;fill:#fff}
+      .subtitle{font:400 15px Arial,sans-serif;fill:#dbeafe}
+      .section{font:700 18px Arial,sans-serif;fill:#0f172a}
+      .box-title{font:700 16px Arial,sans-serif;fill:#0f172a}
+      .text{font:400 13px Arial,sans-serif;fill:#334155}
+      .small{font:400 12px Arial,sans-serif;fill:#475569}
+      .label{font:600 12px Arial,sans-serif;fill:#2563eb}
+      .box{stroke:#cbd5e1;stroke-width:1.5;rx:14;filter:url(#shadow)}
+      .arrow{stroke:#475569;stroke-width:2.2;fill:none;marker-end:url(#arrow)}
+      .blue{stroke:#2563eb;stroke-width:2.4;fill:none;marker-end:url(#blueArrow)}
+      .dashed{stroke-dasharray:8 6}
+    </style>
+  </defs>
+
+  <rect width="1600" height="980" fill="#f8fafc"/>
+  <rect width="1600" height="105" fill="url(#header)"/>
+  <text x="60" y="52" class="title">Kiến trúc tổng thể — Hệ đa agent tư vấn nguy cơ tiểu đường</text>
+  <text x="60" y="80" class="subtitle">ML Risk Prediction + Knowledge Graph/RAG + LangGraph + Ollama + Neo4j Aura</text>
+
+  <text x="60" y="145" class="section">A. Xây dựng dữ liệu và Knowledge Base (offline / pipeline)</text>
+
+  <rect x="60" y="170" width="190" height="100" fill="#fff" class="box"/>
+  <text x="80" y="200" class="box-title">Nguồn dữ liệu</text>
+  <text x="80" y="225" class="text">HTML Long Châu</text>
+  <text x="80" y="247" class="text">PDF y khoa</text>
+
+  <rect x="310" y="170" width="210" height="100" fill="#ecfeff" class="box"/>
+  <text x="330" y="200" class="box-title">Parse tài liệu</text>
+  <text x="330" y="225" class="text">parse_html.py</text>
+  <text x="330" y="247" class="text">parse_pdf.py</text>
+
+  <rect x="580" y="170" width="225" height="100" fill="#eff6ff" class="box"/>
+  <text x="600" y="200" class="box-title">Chunk văn bản</text>
+  <text x="600" y="225" class="text">chunks_final.jsonl</text>
+  <text x="600" y="247" class="text">page • section • URL</text>
+
+  <rect x="865" y="170" width="225" height="100" fill="#fefce8" class="box"/>
+  <text x="885" y="200" class="box-title">LLM extraction</text>
+  <text x="885" y="225" class="text">entities + triples</text>
+  <text x="885" y="247" class="text">evidence + source URL</text>
+
+  <rect x="1150" y="170" width="225" height="100" fill="#fff7ed" class="box"/>
+  <text x="1170" y="200" class="box-title">Validate &amp; chuẩn hóa</text>
+  <text x="1170" y="225" class="text">triples_valid.json</text>
+  <text x="1170" y="247" class="text">thresholds + merge</text>
+
+  <path d="M250 220 H310" class="arrow"/><path d="M520 220 H580" class="arrow"/>
+  <path d="M805 220 H865" class="arrow"/><path d="M1090 220 H1150" class="arrow"/>
+
+  <rect x="330" y="330" width="270" height="105" fill="#f0fdf4" class="box"/>
+  <text x="350" y="360" class="box-title">NetworkX Knowledge Graph</text>
+  <text x="350" y="385" class="text">build_kg.py</text>
+  <text x="350" y="407" class="text">kg.pkl • kg_triples.json</text>
+
+  <rect x="680" y="330" width="270" height="105" fill="#f5f3ff" class="box"/>
+  <text x="700" y="360" class="box-title">Embedding index</text>
+  <text x="700" y="385" class="text">bge-m3 via Ollama</text>
+  <text x="700" y="407" class="text">emb.npz • ents.json</text>
+
+  <rect x="1030" y="330" width="300" height="105" fill="#dbeafe" class="box"/>
+  <text x="1050" y="360" class="box-title">Neo4j Aura</text>
+  <text x="1050" y="385" class="text">neo4j_store.py / neo4j-push</text>
+  <text x="1050" y="407" class="text">Entity nodes + typed relationships</text>
+
+  <path d="M1260 270 V300 H465 V330" class="arrow"/>
+  <path d="M1260 270 V300 H815 V330" class="arrow"/>
+  <path d="M600 382 H680" class="arrow"/>
+  <path d="M950 382 H1030" class="blue"/>
+
+  <text x="60" y="505" class="section">B. Luồng chạy thực tế khi người dùng đặt câu hỏi</text>
+
+  <rect x="60" y="535" width="190" height="100" fill="#fff" class="box"/>
+  <text x="80" y="565" class="box-title">Người dùng / UI</text>
+  <text x="80" y="590" class="text">Flask web_app.py</text>
+  <text x="80" y="612" class="text">CLI / Kaggle tunnel</text>
+
+  <rect x="310" y="535" width="205" height="100" fill="#e0f2fe" class="box"/>
+  <text x="330" y="565" class="box-title">Supervisor</text>
+  <text x="330" y="590" class="text">ask / assess / both</text>
+  <text x="330" y="612" class="text">LangGraph routing</text>
+
+  <rect x="575" y="535" width="205" height="100" fill="#fef3c7" class="box"/>
+  <text x="595" y="565" class="box-title">Intake</text>
+  <text x="595" y="590" class="text">profile extraction</text>
+  <text x="595" y="612" class="text">validation + BMI</text>
+
+  <rect x="840" y="535" width="205" height="100" fill="#fee2e2" class="box"/>
+  <text x="860" y="565" class="box-title">Risk Agent</text>
+  <text x="860" y="590" class="text">XGBoost + calibration</text>
+  <text x="860" y="612" class="text">SHAP + what-if</text>
+
+  <rect x="1105" y="535" width="205" height="100" fill="#dcfce7" class="box"/>
+  <text x="1125" y="565" class="box-title">Knowledge Agent</text>
+  <text x="1125" y="590" class="text">Neo4j + vector RAG</text>
+  <text x="1125" y="612" class="text">evidence + URL</text>
+
+  <path d="M250 585 H310" class="arrow"/>
+  <path d="M515 585 H575" class="arrow"/>
+  <path d="M780 585 H840" class="arrow"/>
+  <path d="M1045 585 H1105" class="blue"/>
+
+  <rect x="500" y="700" width="250" height="105" fill="#f5f3ff" class="box"/>
+  <text x="520" y="730" class="box-title">Advisor LLM</text>
+  <text x="520" y="755" class="text">qwen via Ollama</text>
+  <text x="520" y="777" class="text">draft grounded answer</text>
+
+  <rect x="850" y="700" width="250" height="105" fill="#fce7f3" class="box"/>
+  <text x="870" y="730" class="box-title">Critic (optional)</text>
+  <text x="870" y="755" class="text">rules + LLM checks</text>
+  <text x="870" y="777" class="text">citation / dosage / safety</text>
+
+  <rect x="1200" y="700" width="250" height="105" fill="#ccfbf1" class="box"/>
+  <text x="1220" y="730" class="box-title">Finalize</text>
+  <text x="1220" y="755" class="text">clean answer + disclaimer</text>
+  <text x="1220" y="777" class="text">answer / trace / graph</text>
+
+  <path d="M1205 635 V670 H625 V700" class="blue"/>
+  <path d="M750 752 H850" class="arrow"/>
+  <path d="M1100 752 H1200" class="arrow"/>
+  <path d="M975 700 V665 H625 V700" class="arrow dashed"/>
+  <text x="765" y="682" class="label">nếu Critic phát hiện lỗi: quay lại Advisor</text>
+
+  <path d="M1210 435 V490 H1205 V535" class="blue dashed"/>
+  <text x="1220" y="475" class="label">truy vấn graph</text>
+  <path d="M815 435 V490 H1215 V535" class="arrow dashed"/>
+  <text x="830" y="475" class="label">search_chunks()</text>
+
+  <rect x="60" y="700" width="300" height="105" fill="#fff" class="box"/>
+  <text x="80" y="730" class="box-title">CaseState dùng chung</text>
+  <text x="80" y="755" class="text">patient • risk • evidence</text>
+  <text x="80" y="777" class="text">draft • critique • trace</text>
+  <path d="M310 635 V665 H210 V700" class="arrow dashed"/>
+  <path d="M360 752 H500" class="arrow dashed"/>
+
+  <rect x="380" y="875" width="840" height="60" fill="#0f172a" rx="14"/>
+  <text x="800" y="912" text-anchor="middle" style="font:600 16px Arial,sans-serif;fill:#fff">
+    Kết quả: câu trả lời tiếng Việt + trace agent + Knowledge Graph + nguồn kiểm chứng
+  </text>
+</svg>

@@ -586,26 +586,41 @@
             margin-bottom: 12px
         }
 
-        .kg-edge {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            align-items: center;
-            padding: 8px;
+        .kg-canvas {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: 12px;
             background: #f8fafc;
-            border-radius: 9px
+            margin: 8px 0 14px
         }
 
-        .kg-rel {
+        .kg-canvas svg {
+            display: block;
+            min-width: 680px
+        }
+
+        .kg-link {
             color: var(--brand2);
             font-size: .8rem;
-            font-weight: 600
+            text-decoration: none
         }
 
-        .kg-edge a {
-            margin-left: auto;
-            color: var(--brand2);
-            font-size: .8rem
+        .kg-link:hover {
+            text-decoration: underline
+        }
+
+        .kg-source {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            margin: 6px 0;
+            font-size: .82rem
+        }
+
+        .kg-source b {
+            color: var(--muted);
+            min-width: 28px
         }
 
         .spin {
@@ -803,19 +818,39 @@
                 return;
             }
             const nodes = [...new Set(edges.flatMap(e => [e.subject, e.object]))];
-            const nodeHtml = nodes.map(n => `<span class="kg-node">${esc(n)}</span>`).join('');
-            const edgeHtml = edges.map(e => `
-        <div class="kg-edge">
-            <span class="kg-node">${esc(e.subject)}</span>
-            <span class="kg-rel">— ${esc(e.relation)} →</span>
-            <span class="kg-node">${esc(e.object)}</span>
-            ${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">nguồn</a>` : ''}
-        </div>`).join('');
+            const subjects = [...new Set(edges.map(e => e.subject))];
+            const objects = [...new Set(edges.map(e => e.object))];
+            const rowHeight = 58, height = Math.max(180, Math.max(subjects.length, objects.length) * rowHeight + 40);
+            const y = (name, group) => {
+        const list = group === 'subject' ? subjects : objects;
+        return 30 + list.indexOf(name) * rowHeight + rowHeight / 2;
+            };
+            const node = (name, x, cy, width) => {
+        const label = String(name);
+        const max = Math.max(12, Math.floor(width / 7));
+        const short = label.length > max ? label.slice(0, max - 1) + '…' : label;
+        const cx = x + width / 2;
+        return `<g><circle cx="${cx}" cy="${cy}" r="25" fill="#ecfdf5" stroke="#34d399"/>
+            <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="#065f46">${esc(short)}</text>
+            <title>${esc(label)}</title></g>`;
+            };
+            const lines = edges.map(e => {
+        const sy = y(e.subject, 'subject'), oy = y(e.object, 'object');
+        return `<g><line x1="137" y1="${sy}" x2="543" y2="${oy}" stroke="#94a3b8" stroke-width="2" marker-end="url(#kg-arrow)"/>
+            <text x="340" y="${(sy + oy) / 2 - 5}" text-anchor="middle" font-size="11" font-weight="600" fill="#2563eb">${esc(e.relation)}</text></g>`;
+            }).join('');
+            const sourceHtml = edges.map((e, i) => e.url
+        ? `<div class="kg-source"><b>[${i + 1}]</b><span>${esc(e.subject)} — ${esc(e.relation)} → ${esc(e.object)}</span><a class="kg-link" href="${esc(e.url)}" target="_blank" rel="noopener">nguồn</a></div>`
+        : '').join('');
+            const subjectsSvg = subjects.map(n => node(n, 20, y(n, 'subject'), 185)).join('');
+            const objectsSvg = objects.map(n => node(n, 475, y(n, 'object'), 185)).join('');
             box.innerHTML = `<div class="meta">Backend: <code>${esc(g.backend || 'không xác định')}</code> · ${nodes.length} node · ${edges.length} quan hệ</div>
-        <div class="kg-nodes">${nodeHtml}</div>
-        <div class="kg-edges">${edgeHtml}</div>
-        <table><tr><th>Chủ thể</th><th>Quan hệ</th><th>Đối tượng</th><th>Bằng chứng</th></tr>
-        ${edges.map(e => `<tr><td>${esc(e.subject)}</td><td>${esc(e.relation)}</td><td>${esc(e.object)}</td><td>${esc(e.evidence || '—')}</td></tr>`).join('')}</table>`;
+        <div class="kg-canvas"><svg viewBox="0 0 680 ${height}" width="680" height="${height}" role="img" aria-label="Đồ thị Knowledge Graph">
+            <defs><marker id="kg-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/></marker></defs>
+            ${lines}${subjectsSvg}${objectsSvg}
+        </svg></div>
+        ${sourceHtml ? `<div class="meta">Nguồn kiểm chứng</div>${sourceHtml}` : ''}`;
         }
 
         function setDetailsForMode(mode) {
