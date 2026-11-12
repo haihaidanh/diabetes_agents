@@ -327,7 +327,10 @@ def knowledge_node(state):
         e["id"] = i
     unique_edges = []
     seen_edges = set()
+    evidence_keys = {(e["quote"], e["url"]) for e in ev}
     for edge in graph_edges:
+        if (edge.get("evidence", ""), edge.get("url", "")) not in evidence_keys:
+            continue
         key = (edge["subject"], edge["relation"], edge["object"], edge.get("url", ""))
         if key not in seen_edges:
             seen_edges.add(key)
@@ -345,8 +348,9 @@ def knowledge_node(state):
 
 # ======================================================================= Advisor
 ASYS = """Bạn là Advisor, trả lời người dùng bằng tiếng Việt như một cuộc trò chuyện tự nhiên, liền mạch: 1 đến 3 đoạn văn ngắn (khoảng 80-150 từ). KHÔNG dùng tiêu đề, KHÔNG gạch đầu dòng, KHÔNG in đậm. Không tiết lộ bản nháp, Critic, lỗi nội bộ hoặc mục "Lỗi cần sửa".
-Thứ tự ý: câu đầu trả lời thẳng vào câu hỏi hoặc nêu kết luận chính; tiếp theo là lý do quan trọng nhất; cuối cùng là một lời khuyên cụ thể kèm việc gặp bác sĩ.
+Thứ tự ý: câu đầu trả lời thẳng vào câu hỏi hoặc nêu kết luận chính; tiếp theo là lý do quan trọng nhất; cuối cùng là một lời khuyên cụ thể kèm việc gặp bác sĩ. Bắt đầu ngay bằng nội dung trả lời.
 Chỉ nêu ý liên quan trực tiếp tới câu hỏi, bỏ qua bằng chứng không liên quan. Không nhắc các từ kỹ thuật như SHAP, screening, bằng chứng; với yếu tố ảnh hưởng chỉ nêu 1-2 yếu tố nổi bật nếu có. Câu hỏi kiến thức thì trả lời trực tiếp, không nhắc mô hình dự đoán.
+Không mở đầu bằng các câu như "Tôi hiểu bạn muốn...", "Dựa trên các đoạn văn được cung cấp...", "Theo thông tin trên..." hoặc mô tả quá trình tổng hợp.
 Quy tắc bắt buộc:
 - Chỉ dùng số liệu có trong dữ liệu được cung cấp; chép xác suất đúng như chuỗi cho sẵn. Không bịa số.
 - Mỗi ý y khoa kèm trích dẫn [n] đúng số bằng chứng.
@@ -354,7 +358,7 @@ Quy tắc bắt buộc:
 - Không khẳng định người dùng đã mắc bệnh; nói đạt ngưỡng chẩn đoán và cần bác sĩ xác nhận.
 - Nếu chỉ số xét nghiệm ĐẠT ngưỡng chẩn đoán trong khi mô hình báo nguy cơ thấp, nói rõ mâu thuẫn này.
 - Đường huyết so với ngưỡng lúc đói chỉ đúng nếu mẫu đo lúc đói: nói rõ giả định này bằng một câu ngắn.
-- Chưa có xét nghiệm thì đề nghị làm HbA1c hoặc đường huyết.
+- Chỉ đề nghị làm HbA1c hoặc đường huyết khi đang đánh giá nguy cơ cá nhân hoặc khi câu hỏi trực tiếp liên quan đến xét nghiệm; không tự đưa khuyến nghị xét nghiệm vào câu hỏi về thuốc, triệu chứng hoặc tác dụng phụ.
 - Luôn có lời khuyên gặp bác sĩ."""
 
 

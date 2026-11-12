@@ -22,6 +22,13 @@ INTERNAL_FEEDBACK = re.compile(
     r"(?:^|\n)\s*(?:lỗi cần sửa|các lỗi phải sửa|các lỗi cần sửa)\s*:?.*$",
     re.IGNORECASE | re.MULTILINE,
 )
+META_OPENING = re.compile(
+    r"^\s*(?:"
+    r"Tôi hiểu bạn muốn[^.?!]*[.?!]\s*|"
+    r"Dựa trên (?:các )?(?:đoạn văn|bằng chứng)[^.?!]*[,:]?\s*"
+    r")",
+    re.IGNORECASE,
+)
 
 
 @lru_cache(maxsize=1)
@@ -39,6 +46,7 @@ def finalize_node(state):
     d, ev = state.get("draft", ""), {e["id"]: e for e in state.get("evidence") or []}
     # Critic feedback is internal control data, never part of the user-facing answer.
     d = INTERNAL_FEEDBACK.split(d, maxsplit=1)[0].rstrip()
+    d = META_OPENING.sub("", d, count=1).lstrip()
     cited = sorted({int(n) for n in re.findall(r"\[(\d+)\]", d) if int(n) in ev})
     note = (
         ""
