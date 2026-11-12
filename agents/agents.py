@@ -236,7 +236,7 @@ def graph_rows(res) -> list:
         return rows
     for key in ("edges", "side_effects", "contraindications", "class", "indications", "risk_links"):
         for edge in res.get(key) or []:
-            if not all(edge.get(k) for k in ("subject", "object", "relation")):
+            if not isinstance(edge, dict) or not all(edge.get(k) for k in ("subject", "object", "relation")):
                 continue
             rows.append({
                 "subject": edge["subject"],
@@ -283,6 +283,14 @@ def knowledge_node(state):
     for c in log:
         if "error" not in c["result"]:
             graph_edges.extend(graph_rows(c["result"]))
+    if kg_mode:
+        # The graph shown in the UI must not depend on the LLM choosing neighbors().
+        # Resolve the top linked entities deterministically from the configured KG.
+        linked = K.link_entities(state["question"], top_k=2)
+        for entity in linked:
+            related = K.neighbors(entity["name"], limit=12)
+            graph_edges.extend(graph_rows(related))
+            rows.extend(harvest(related))
     if rnd == 1 and not rows:                            # dự phòng khi model không gọi công cụ
         if kg_mode:
             for e in K.link_entities(state["question"], 2):

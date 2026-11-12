@@ -50,6 +50,7 @@ def api_chat():
     out = {"answer": s.get("answer"), "trace": s.get("trace"), "risk": s.get("risk"),
            "lab_checks": s.get("lab_checks"), "evidence": s.get("evidence"),
            "knowledge_graph": s.get("knowledge_graph"),
+           "knowledge_mode": s.get("knowledge_graph", {}).get("backend") and "kg" or "rag",
            "patient": s.get("patient") or patient}
     return Response(json.dumps(out, default=_clean, ensure_ascii=False), mimetype="application/json")
 

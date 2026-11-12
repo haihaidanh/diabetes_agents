@@ -35,7 +35,11 @@ def finalize_node(state):
         return {"answer": state["ask_user"], "_decision": "hỏi lại người dùng"}
     d, ev = state.get("draft", ""), {e["id"]: e for e in state.get("evidence") or []}
     cited = sorted({int(n) for n in re.findall(r"\[(\d+)\]", d) if int(n) in ev})
-    note = "" if (state.get("critique") or {}).get("passed", True) else "\n\n_(Câu trả lời chưa qua hết kiểm duyệt tự động.)_"
+    note = (
+        ""
+        if SETTINGS["knowledge_mode"] == "kg" or (state.get("critique") or {}).get("passed", True)
+        else "\n\n_(Câu trả lời chưa qua hết kiểm duyệt tự động.)_"
+    )
     if SETTINGS["show_sources"]:
         by: dict = {}
         for n in cited:

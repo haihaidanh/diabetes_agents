@@ -319,8 +319,18 @@
         }
 
         @keyframes typing {
-            0%, 60%, 100% { opacity: .35; transform: translateY(0) }
-            30% { opacity: 1; transform: translateY(-4px) }
+
+            0%,
+            60%,
+            100% {
+                opacity: .35;
+                transform: translateY(0)
+            }
+
+            30% {
+                opacity: 1;
+                transform: translateY(-4px)
+            }
         }
 
         .err {
@@ -681,11 +691,10 @@
         <!-- Hỏi đáp + kết quả -->
         <div class="stack">
             <div class="card" id="cAns">
-                <h2>💬 Cuộc trò chuyện</h2>
+                <h2>Tư vấn sức khỏe</h2>
                 <div class="chat-log" id="chatLog"></div>
                 <div class="chat-composer">
-                    <textarea id="q"
-                        placeholder="Nhập câu hỏi của bạn..."></textarea>
+                    <textarea id="q" placeholder="Nhập câu hỏi của bạn..."></textarea>
                     <div class="actions">
                         <button id="send">Gửi</button>
                         <button id="reset">Làm mới</button>
@@ -786,27 +795,33 @@
         }
 
         function renderKnowledgeGraph(g) {
-    const box = $('kg'), edges = (g && g.edges) || [];
-    if (!edges.length) {
-        box.innerHTML = g && g.backend
-            ? 'Lần hỏi này không lấy được relationship từ Knowledge Graph.'
-            : 'Chế độ hiện tại không truy vấn Knowledge Graph (chỉ dùng RAG).';
-        return;
-    }
-    const nodes = [...new Set(edges.flatMap(e => [e.subject, e.object]))];
-    const nodeHtml = nodes.map(n => `<span class="kg-node">${esc(n)}</span>`).join('');
-    const edgeHtml = edges.map(e => `
+            const box = $('kg'), edges = (g && g.edges) || [];
+            if (!edges.length) {
+                box.innerHTML = g && g.backend
+                    ? 'Lần hỏi này không lấy được relationship từ Knowledge Graph.'
+                    : 'Chế độ hiện tại không truy vấn Knowledge Graph (chỉ dùng RAG).';
+                return;
+            }
+            const nodes = [...new Set(edges.flatMap(e => [e.subject, e.object]))];
+            const nodeHtml = nodes.map(n => `<span class="kg-node">${esc(n)}</span>`).join('');
+            const edgeHtml = edges.map(e => `
         <div class="kg-edge">
             <span class="kg-node">${esc(e.subject)}</span>
             <span class="kg-rel">— ${esc(e.relation)} →</span>
             <span class="kg-node">${esc(e.object)}</span>
             ${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">nguồn</a>` : ''}
         </div>`).join('');
-    box.innerHTML = `<div class="meta">Backend: <code>${esc(g.backend || 'không xác định')}</code> · ${nodes.length} node · ${edges.length} quan hệ</div>
+            box.innerHTML = `<div class="meta">Backend: <code>${esc(g.backend || 'không xác định')}</code> · ${nodes.length} node · ${edges.length} quan hệ</div>
         <div class="kg-nodes">${nodeHtml}</div>
         <div class="kg-edges">${edgeHtml}</div>
         <table><tr><th>Chủ thể</th><th>Quan hệ</th><th>Đối tượng</th><th>Bằng chứng</th></tr>
         ${edges.map(e => `<tr><td>${esc(e.subject)}</td><td>${esc(e.relation)}</td><td>${esc(e.object)}</td><td>${esc(e.evidence || '—')}</td></tr>`).join('')}</table>`;
+        }
+
+        function setDetailsForMode(mode) {
+            const kg = mode === 'kg';
+            $('dEv').classList.toggle('hide', kg);
+            if (kg) $('ev').innerHTML = '';
         }
 
         async function send() {
@@ -850,6 +865,7 @@
                     conversation.push({ question, answer: d.answer || '' });
                     $('chatLog').insertAdjacentHTML('beforeend',
                         `<div class="message assistant">${DOMPurify.sanitize(marked.parse(d.answer || ''))}</div>`);
+                    setDetailsForMode(d.knowledge_mode);
                     renderRisk(d.risk); renderEvidence(d); renderTrace(d.trace); renderKnowledgeGraph(d.knowledge_graph);
                     $('more').classList.remove('hide');
                     $('chatLog').lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
