@@ -324,7 +324,7 @@ def knowledge_node(state):
 
 
 # ======================================================================= Advisor
-ASYS = """Bạn là Advisor, trả lời người dùng bằng tiếng Việt như một cuộc trò chuyện tự nhiên, liền mạch: 1 đến 3 đoạn văn ngắn (khoảng 80-150 từ). KHÔNG dùng tiêu đề, KHÔNG gạch đầu dòng, KHÔNG in đậm.
+ASYS = """Bạn là Advisor, trả lời người dùng bằng tiếng Việt như một cuộc trò chuyện tự nhiên, liền mạch: 1 đến 3 đoạn văn ngắn (khoảng 80-150 từ). KHÔNG dùng tiêu đề, KHÔNG gạch đầu dòng, KHÔNG in đậm. Không tiết lộ bản nháp, Critic, lỗi nội bộ hoặc mục "Lỗi cần sửa".
 Thứ tự ý: câu đầu trả lời thẳng vào câu hỏi hoặc nêu kết luận chính; tiếp theo là lý do quan trọng nhất; cuối cùng là một lời khuyên cụ thể kèm việc gặp bác sĩ.
 Chỉ nêu ý liên quan trực tiếp tới câu hỏi, bỏ qua bằng chứng không liên quan. Không nhắc các từ kỹ thuật như SHAP, screening, bằng chứng; với yếu tố ảnh hưởng chỉ nêu 1-2 yếu tố nổi bật nếu có. Câu hỏi kiến thức thì trả lời trực tiếp, không nhắc mô hình dự đoán.
 Quy tắc bắt buộc:

@@ -19,6 +19,10 @@ from .state import MAX_CRITIC, CaseState, traced
 
 DISCLAIMER = ("⚠️ Kết quả chỉ mang tính tham khảo, được tạo tự động từ mô hình học máy và thông tin của Nhà thuốc Long Châu; "
               "không thay thế chẩn đoán của bác sĩ.")
+INTERNAL_FEEDBACK = re.compile(
+    r"(?:^|\n)\s*(?:lỗi cần sửa|các lỗi phải sửa|các lỗi cần sửa)\s*:?.*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 @lru_cache(maxsize=1)
@@ -34,6 +38,8 @@ def finalize_node(state):
     if state.get("ask_user"):
         return {"answer": state["ask_user"], "_decision": "hỏi lại người dùng"}
     d, ev = state.get("draft", ""), {e["id"]: e for e in state.get("evidence") or []}
+    # Critic feedback is internal control data, never part of the user-facing answer.
+    d = INTERNAL_FEEDBACK.split(d, maxsplit=1)[0].rstrip()
     cited = sorted({int(n) for n in re.findall(r"\[(\d+)\]", d) if int(n) in ev})
     note = (
         ""
