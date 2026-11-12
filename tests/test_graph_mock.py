@@ -32,6 +32,16 @@ def test_missing_data_asks_back(monkeypatch):
     assert "Bạn vui lòng" in out["answer"] and out["trace"][-1]["agent"] == "finalize"
 
 
+def test_personal_condition_can_be_context_for_knowledge_question(monkeypatch):
+    monkeypatch.setattr(llm, "submit", lambda *a, **k: None)
+    out = A.supervisor_node({
+        "question": "Tôi bị tăng huyết áp thì có nguy cơ bị tiểu đường không?",
+        "form": {},
+        "patient": {},
+    })
+    assert out["intent"] == "ask"
+
+
 def test_critic_loop(monkeypatch):
     setup(monkeypatch, ["Uống 500 mg [9].", "Triệu chứng là khát nước [1]. Hãy gặp bác sĩ."])
     out = graph.run_case("Triệu chứng tiểu đường là gì?")

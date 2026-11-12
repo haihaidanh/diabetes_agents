@@ -20,7 +20,12 @@ class Intent(BaseModel):
 
 
 PROFILE_HINT = re.compile(r"\d+\s*tuổi|hba1c\s*\d|bmi\s*\d|nặng\s*\d|cao\s*\d", re.I)
-SELF_RISK = re.compile(r"nguy cơ.{0,25}(của tôi|của mình|tôi|mình)|tôi.{0,25}nguy cơ")
+SELF_RISK = re.compile(
+    r"(?:nguy cơ|khả năng)\s+(?:của\s+(?:tôi|mình)|(?:tôi|mình)\s+(?:bị|mắc|là))"
+    r"|(?:tôi|mình)\s+(?:có|có khả năng)\s+(?:nguy cơ|khả năng)\s*(?:bị|mắc)?"
+    r"|(?:đánh giá|dự đoán|ước tính|tính)\s+.{0,30}(?:nguy cơ|khả năng)",
+    re.I,
+)
 
 
 @traced("supervisor")
@@ -28,11 +33,14 @@ def supervisor_node(state):
     q, form = state["question"], state.get("form") or {}
     has_profile = bool(form) or bool(state.get("patient")) or bool(PROFILE_HINT.search(q))
     r = llm.submit("Phân loại ý định người dùng: assess = muốn đánh giá nguy cơ cá nhân từ hồ sơ sức khỏe; "
-                   "ask = chỉ hỏi kiến thức (triệu chứng, thuốc, chế độ ăn...); both = có hồ sơ và còn hỏi thêm kiến thức.", q, Intent)
+                   "ask = hỏi kiến thức hoặc mối liên hệ giữa các bệnh/triệu chứng/thuốc, kể cả khi người dùng "
+                   "nói 'tôi bị...' để làm bối cảnh; both = vừa muốn đánh giá cá nhân vừa hỏi thêm kiến thức. "
+                   "Chỉ chọn assess khi người dùng hỏi nguy cơ/khả năng của chính họ hoặc yêu cầu dự đoán, đánh giá, "
+                   "tính nguy cơ.", q, Intent)
     intent = r.intent if r and r.intent in ("assess", "ask", "both") else None
     if not has_profile:       # chưa có dữ liệu: hỏi "nguy cơ của tôi" vẫn đi qua Intake để được hỏi lại
         intent = "assess" if SELF_RISK.search(q.lower()) else "ask"
-    elif intent in (None, "ask"):
+    elif intent is None:
         intent = "assess"
     return {"intent": intent, "_decision": f"intent={intent} → {'Knowledge' if intent == 'ask' else 'Intake'}"}
 
