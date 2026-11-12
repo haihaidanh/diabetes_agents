@@ -854,9 +854,7 @@
         }
 
         function setDetailsForMode(mode) {
-            const kg = mode === 'kg';
-            $('dEv').classList.toggle('hide', kg);
-            if (kg) $('ev').innerHTML = '';
+            $('dEv').classList.remove('hide');
         }
 
         async function send() {

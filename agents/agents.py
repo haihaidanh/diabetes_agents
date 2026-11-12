@@ -296,11 +296,21 @@ def knowledge_node(state):
     if kg_mode:
         # The graph shown in the UI must not depend on the LLM choosing neighbors().
         # Resolve the top linked entities deterministically from the configured KG.
-        linked = K.link_entities(state["question"], top_k=2)
+        linked = K.link_entities(state["question"], top_k=3)
         for entity in linked:
             related = K.neighbors(entity["name"], limit=12)
             graph_edges.extend(graph_rows(related))
             rows.extend(harvest(related))
+
+        # Thêm liên kết từ các yếu tố rủi ro của người dùng (SHAP / patient features) vào đồ thị
+        if r and r.get("factors"):
+            for f in r["factors"][:2]:
+                feat_name = f.get("feature", "")
+                if feat_name:
+                    feat_info = K.explain_feature(feat_name)
+                    if isinstance(feat_info, dict) and feat_info.get("risk_links"):
+                        graph_edges.extend(graph_rows(feat_info))
+                        rows.extend(harvest(feat_info))
     if rnd == 1 and not rows:                            # dự phòng khi model không gọi công cụ
         if kg_mode:
             for e in K.link_entities(state["question"], 2):

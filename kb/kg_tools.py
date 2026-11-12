@@ -5,6 +5,7 @@ Dữ liệu nạp lười (lần gọi đầu tiên) từ artifacts/kb.
 import json
 import pickle
 import os
+import re
 
 import numpy as np
 
@@ -39,18 +40,66 @@ def _q(text: str) -> np.ndarray:
     return embed([text])[0]
 
 
+# Từ đồng nghĩa phổ biến để map thẳng vào thực thể chuẩn trong KG
+SYNONYMS = {
+    "tieu duong": "Đái tháo đường",
+    "benh tieu duong": "Đái tháo đường",
+    "dai thao duong": "Đái tháo đường",
+    "benh dai thao duong": "Đái tháo đường",
+    "tieu duong tuyp 2": "Đái tháo đường tuýp 2",
+    "tieu duong type 2": "Đái tháo đường tuýp 2",
+    "tieu duong tuyp 1": "Đái tháo đường tuýp 1",
+    "tieu duong type 1": "Đái tháo đường tuýp 1",
+    "tang huyet ap": "Tăng huyết áp",
+    "cao huyet ap": "Tăng huyết áp",
+    "beo phi": "Béo phì",
+    "thua can": "Thừa cân",
+}
+
+
 def link_entities(text: str, top_k: int = 5) -> list:
-    """Tìm thực thể trong KG khớp với đoạn văn (khớp tên + ngữ nghĩa)."""
+    """Tìm thực thể trong KG khớp với đoạn văn (khớp tên + từ đồng nghĩa + ngữ nghĩa)."""
     s_, G = _load(), graph()
     n, out = norm(text), {}
+    words = re.findall(r"\w+", n)
+    word_set = set(words)
+
+    # 1. Khớp từ đồng nghĩa thông dụng
+    for syn_key, syn_target in SYNONYMS.items():
+        if syn_key in n and syn_target in G:
+            out[syn_target] = 1.0
+
+    # 2. Khớp chuỗi tên thực thể
     for e in s_["ENTS"]:
         k = norm(e)
-        if len(k) >= 4 and k in n:
-            out[e] = 1.0
+        if not k or len(k) < 3:
+            continue
+        # Tránh các từ quá chung gây nhiễu (như từ 'Đường' bị khớp khi người dùng gõ 'tiểu đường')
+        if k in ("duong", "tuoi", "gioi"):
+            continue
+        if " " in k:
+            if k in n:
+                out[e] = 1.0
+        else:
+            if k in word_set and len(k) >= 4:
+                out[e] = 0.9
+
+    # 3. Embedding tương đồng ngữ nghĩa
     s = s_["E_ENT"] @ _q(text)
-    for i in np.argsort(-s)[:top_k]:
-        out.setdefault(s_["ENTS"][i], float(s[i]))
-    top = sorted(out.items(), key=lambda x: -x[1])[:top_k]
+    for i in np.argsort(-s)[: top_k * 3]:
+        ent_name = s_["ENTS"][i]
+        out.setdefault(ent_name, float(s[i]))
+
+    # Ưu tiên các thực thể có quan hệ (degree > 0) và thuộc các lớp quan trọng
+    def _rank_key(item):
+        name, score = item
+        deg = G.degree(name) if name in G else 0
+        node_type = G.nodes[name].get("type", "") if name in G else ""
+        type_bonus = 0.2 if node_type in ("Disease", "Drug", "RiskFactor", "Test") else 0.0
+        deg_bonus = 0.15 if deg > 0 else -0.3
+        return score + type_bonus + deg_bonus
+
+    top = sorted(out.items(), key=_rank_key, reverse=True)[:top_k]
     return [{"name": e, "type": G.nodes[e]["type"], "score": round(sc, 3)} for e, sc in top]
 
 
