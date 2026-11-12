@@ -76,6 +76,18 @@ class Neo4jGraph:
     def __contains__(self, name):
         return name in self.nodes
 
+    def degree(self, name=None):
+        """Return the number of incoming and outgoing relationships for an entity."""
+        if name is None:
+            return {entity: self.degree(entity) for entity in self.nodes}
+        rows = self._run(
+            "MATCH (n:Entity {name:$n}) "
+            "OPTIONAL MATCH (n)-[r]-() "
+            "RETURN count(r) AS c",
+            n=name,
+        )
+        return int(rows[0]["c"]) if rows else 0
+
     @staticmethod
     def _edge(r):
         return r["a"], r["b"], {**r["p"], "relation": r["rel"]}
