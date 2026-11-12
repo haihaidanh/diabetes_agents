@@ -89,7 +89,9 @@ def parse_rules(q: str) -> dict:
         out["gender"] = "Male"
     h = w = None
     if m := re.search(r"cao\s*(\d)\s*m\s*(\d{1,2})", t):
-        h = int(m[1]) * 100 + int(m[2])
+        h = int(m[1]) * 100 + int(m[2].ljust(2, "0"))
+    elif m := re.search(r"cao\s*(\d+(?:[.,]\d+)?)\s*m\b", t):
+        h = round(float(m[1].replace(",", ".")) * 100)
     elif m := re.search(r"cao\s*(\d{3})\s*cm", t):
         h = int(m[1])
     if m := re.search(r"(\d{2,3}(?:[.,]\d)?)\s*kg", t):

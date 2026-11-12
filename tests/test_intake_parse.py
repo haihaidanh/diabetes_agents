@@ -7,6 +7,10 @@ def test_profile():
     assert p["bmi"] == 27.7 and p["hypertension"] == 0 and p["HbA1c_level"] == 6.5
 
 
+def test_decimal_height_without_trailing_zero():
+    assert parse_rules("cao 1m6 nặng 100kg")["bmi"] == 39.1
+
+
 def test_glucose_mmol():
     assert parse_labs("đường huyết 7.5 mmol/l")["blood_glucose_level"] == 135
     assert glu(165, "mg/dL") == 165
