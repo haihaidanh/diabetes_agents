@@ -49,6 +49,7 @@ def api_chat():
         return jsonify(error=f"{type(e).__name__}: {e}")
     out = {"answer": s.get("answer"), "trace": s.get("trace"), "risk": s.get("risk"),
            "lab_checks": s.get("lab_checks"), "evidence": s.get("evidence"),
+           "knowledge_graph": s.get("knowledge_graph"),
            "patient": s.get("patient") or patient}
     return Response(json.dumps(out, default=_clean, ensure_ascii=False), mimetype="application/json")
 

@@ -1,4 +1,5 @@
 """Năm agent: Supervisor, Intake, Risk, Knowledge, Advisor (Critic nằm ở critic.py)."""
+import os
 import re
 
 from pydantic import BaseModel
@@ -228,6 +229,25 @@ def harvest(res, limit: int = 4) -> list:
     return rows[:limit]
 
 
+def graph_rows(res) -> list:
+    """Extract graph edges returned by Neo4j-backed KG tools."""
+    rows = []
+    if not isinstance(res, dict):
+        return rows
+    for key in ("edges", "side_effects", "contraindications", "class", "indications", "risk_links"):
+        for edge in res.get(key) or []:
+            if not all(edge.get(k) for k in ("subject", "object", "relation")):
+                continue
+            rows.append({
+                "subject": edge["subject"],
+                "relation": edge["relation"],
+                "object": edge["object"],
+                "evidence": edge.get("evidence", ""),
+                "url": edge.get("url", ""),
+            })
+    return rows
+
+
 KSYS = ("Bạn là Knowledge Agent: tra cứu bằng chứng trong Knowledge Graph về bệnh tiểu đường. Dùng link_entities để tìm thực thể, "
         "neighbors/drug_info để lấy quan hệ, explain_feature để nối đặc trưng với ngưỡng, search_chunks khi đồ thị chưa đủ. "
         "Tên thực thể phải đúng như link_entities trả về. Không trả lời người dùng, chỉ gọi công cụ.")
@@ -239,6 +259,7 @@ def knowledge_node(state):
     kg_mode = SETTINGS["knowledge_mode"] == "kg"
     rnd = (state.get("counters") or {}).get("knowledge_rounds", 0) + 1
     p, ev = state.get("patient") or {}, list(state.get("evidence") or [])
+    graph_edges = list((state.get("knowledge_graph") or {}).get("edges") or [])
     labs = state.get("lab_checks")
     if labs is None:                                     # đối chiếu xét nghiệm với ngưỡng trong KG bằng code, tất định
         labs = []
@@ -259,10 +280,15 @@ def knowledge_node(state):
     log = llm.run_tools(KSYS if kg_mode else KSYS_RAG, topic + hint, tools,
                         max_steps=config.LLM_TOOL_STEPS)
     rows = [row for c in log if "error" not in c["result"] for row in harvest(c["result"])]
+    for c in log:
+        if "error" not in c["result"]:
+            graph_edges.extend(graph_rows(c["result"]))
     if rnd == 1 and not rows:                            # dự phòng khi model không gọi công cụ
         if kg_mode:
             for e in K.link_entities(state["question"], 2):
-                rows += harvest(K.neighbors(e["name"]))
+                fallback = K.neighbors(e["name"])
+                rows += harvest(fallback)
+                graph_edges.extend(graph_rows(fallback))
         rows += harvest(K.search_chunks(state["question"]))
     seen = {e["quote"] for e in ev}
     for claim, quote, url in rows:
@@ -271,8 +297,21 @@ def knowledge_node(state):
             ev.append({"claim": claim, "quote": quote, "url": url})
     for i, e in enumerate(ev, 1):
         e["id"] = i
+    unique_edges = []
+    seen_edges = set()
+    for edge in graph_edges:
+        key = (edge["subject"], edge["relation"], edge["object"], edge.get("url", ""))
+        if key not in seen_edges:
+            seen_edges.add(key)
+            unique_edges.append(edge)
+    graph_nodes = sorted({x for edge in unique_edges for x in (edge["subject"], edge["object"])})
     done = len(ev) >= 4 or rnd >= MAX_KNOWLEDGE
-    return {"evidence": ev, "lab_checks": labs, "knowledge_done": done, "counters": {"knowledge_rounds": rnd},
+    return {"evidence": ev, "lab_checks": labs,
+            "knowledge_graph": {
+                                "backend": ("neo4j" if os.getenv("KG_BACKEND", "networkx") == "neo4j"
+                                            else "networkx") if kg_mode else None,
+                                "nodes": graph_nodes, "edges": unique_edges},
+            "knowledge_done": done, "counters": {"knowledge_rounds": rnd},
             "_decision": f"vòng {rnd}: {len(ev)} bằng chứng → {'Advisor' if done else 'tự mở rộng truy vấn'}"}
 
 

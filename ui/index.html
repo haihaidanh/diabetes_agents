@@ -552,6 +552,52 @@
             font-weight: 500
         }
 
+        .kg-nodes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 8px 0 14px
+        }
+
+        .kg-node {
+            display: inline-block;
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-size: .8rem
+        }
+
+        .kg-edges {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px
+        }
+
+        .kg-edge {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            padding: 8px;
+            background: #f8fafc;
+            border-radius: 9px
+        }
+
+        .kg-rel {
+            color: var(--brand2);
+            font-size: .8rem;
+            font-weight: 600
+        }
+
+        .kg-edge a {
+            margin-left: auto;
+            color: var(--brand2);
+            font-size: .8rem
+        }
+
         .spin {
             display: inline-block;
             width: 14px;
@@ -660,6 +706,10 @@
                     <summary>🧭 Đường đi của agent</summary>
                     <div class="body" id="tr"></div>
                 </details>
+                <details id="dKg">
+                    <summary>🕸️ Knowledge Graph được truy xuất</summary>
+                    <div class="body" id="kg"></div>
+                </details>
             </div>
         </div>
     </div>
@@ -735,6 +785,30 @@
     ${tr.map(t => `<tr><td>${esc(t.agent)}</td><td>${esc(t.decision)}</td><td>${esc(t.sec)}s</td><td>${esc(t.llm)}</td></tr>`).join('')}</table>`;
         }
 
+        function renderKnowledgeGraph(g) {
+    const box = $('kg'), edges = (g && g.edges) || [];
+    if (!edges.length) {
+        box.innerHTML = g && g.backend
+            ? 'Lần hỏi này không lấy được relationship từ Knowledge Graph.'
+            : 'Chế độ hiện tại không truy vấn Knowledge Graph (chỉ dùng RAG).';
+        return;
+    }
+    const nodes = [...new Set(edges.flatMap(e => [e.subject, e.object]))];
+    const nodeHtml = nodes.map(n => `<span class="kg-node">${esc(n)}</span>`).join('');
+    const edgeHtml = edges.map(e => `
+        <div class="kg-edge">
+            <span class="kg-node">${esc(e.subject)}</span>
+            <span class="kg-rel">— ${esc(e.relation)} →</span>
+            <span class="kg-node">${esc(e.object)}</span>
+            ${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">nguồn</a>` : ''}
+        </div>`).join('');
+    box.innerHTML = `<div class="meta">Backend: <code>${esc(g.backend || 'không xác định')}</code> · ${nodes.length} node · ${edges.length} quan hệ</div>
+        <div class="kg-nodes">${nodeHtml}</div>
+        <div class="kg-edges">${edgeHtml}</div>
+        <table><tr><th>Chủ thể</th><th>Quan hệ</th><th>Đối tượng</th><th>Bằng chứng</th></tr>
+        ${edges.map(e => `<tr><td>${esc(e.subject)}</td><td>${esc(e.relation)}</td><td>${esc(e.object)}</td><td>${esc(e.evidence || '—')}</td></tr>`).join('')}</table>`;
+        }
+
         async function send() {
             const btn = $('send');
             const form = {
@@ -776,7 +850,7 @@
                     conversation.push({ question, answer: d.answer || '' });
                     $('chatLog').insertAdjacentHTML('beforeend',
                         `<div class="message assistant">${DOMPurify.sanitize(marked.parse(d.answer || ''))}</div>`);
-                    renderRisk(d.risk); renderEvidence(d); renderTrace(d.trace);
+                    renderRisk(d.risk); renderEvidence(d); renderTrace(d.trace); renderKnowledgeGraph(d.knowledge_graph);
                     $('more').classList.remove('hide');
                     $('chatLog').lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }

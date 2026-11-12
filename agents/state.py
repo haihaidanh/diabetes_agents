@@ -15,6 +15,7 @@ class CaseState(TypedDict, total=False):
     risk_request: str | None          # Risk nhờ Intake tìm thêm xét nghiệm
     knowledge_done: bool              # False thì Knowledge tự lặp thêm một vòng
     evidence: list
+    knowledge_graph: dict
     lab_checks: list
     draft: str
     critique: dict
