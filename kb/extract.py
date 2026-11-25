@@ -109,14 +109,23 @@ def call_llm(user: str, tool_def: dict, key: str) -> list:
     cache = _load_cache()
     if key in cache:
         return cache[key]
-    items = []
-    for _ in range(3):
-        kw = dict(model=config.LLM_MODEL, tools=[tool_def], options={"temperature": 0, "num_ctx": 8192},
+    items, failed = [], False
+    for attempt in range(3):
+        # lần thử sau tăng nhiệt độ + phạt lặp + giới hạn độ dài để thoát vòng lặp token của model
+        opts = {"temperature": 0, "num_ctx": 8192} if attempt == 0 else \
+               {"temperature": 0.3 * attempt, "num_ctx": 8192, "repeat_penalty": 1.15, "num_predict": 2048}
+        kw = dict(model=config.LLM_MODEL, tools=[tool_def], options=opts,
                   messages=[{"role": "system", "content": SYS}, {"role": "user", "content": user}])
         try:
-            r = ollama.chat(**kw, think=False)
-        except TypeError:
-            r = ollama.chat(**kw)
+            try:
+                r = ollama.chat(**kw, think=False)
+            except TypeError:
+                r = ollama.chat(**kw)
+        except Exception as e:                      # vd. ResponseError "token repeat limit reached"
+            print(f"  [LLM lỗi, thử lại {attempt + 1}/3] {type(e).__name__}: {str(e)[:80]}")
+            failed = True
+            continue
+        failed = False
         calls = r.message.tool_calls or []
         if calls:
             a = calls[0].function.arguments
@@ -130,6 +139,8 @@ def call_llm(user: str, tool_def: dict, key: str) -> list:
                 items = [g for g in got if isinstance(g, dict)]
                 break
         user += "\n\nBắt buộc gọi công cụ để nộp kết quả."
+    if failed:                                      # lỗi liên tục: bỏ qua chunk này, KHÔNG ghi cache để lần sau thử lại
+        return []
     cache[key] = items
     with open(CACHE_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps({"key": key, "items": items}, ensure_ascii=False) + "\n")

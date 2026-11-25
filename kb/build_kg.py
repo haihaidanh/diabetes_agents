@@ -79,7 +79,7 @@ def embedding_merge(names_by_type: dict, hi=0.95, lo=0.92):
     return {keys[i]: keys[find(i)][0] for i in range(len(keys))}, review
 
 
-def main(embed_merge: bool = True):
+def main(embed_merge: bool = True, store: str = "pickle"):
     kb = config.KB_DIR
     good = json.load(open(kb / "triples_valid.json", encoding="utf-8"))
     chunks = read_jsonl(kb / "chunks_final.jsonl")
@@ -156,7 +156,11 @@ def main(embed_merge: bool = True):
             G.add_edge(feat, n, relation="MAPS_TO")
         print(f"  {feat:22} -> {hits[:4] or 'KHÔNG CÓ node tri thức'}")
 
-    pickle.dump(G, open(kb / "kg.pkl", "wb"))
+    if store == "neo4j":                                  # lưu thẳng lên Neo4j, không tạo kg.pkl
+        from .neo4j_store import push
+        push(G)
+    else:
+        pickle.dump(G, open(kb / "kg.pkl", "wb"))
     json.dump(good, open(kb / "kg_triples.json", "w", encoding="utf-8"), ensure_ascii=False)
     print("\nThực thể:", G.number_of_nodes(), Counter(d["type"] for _, d in G.nodes(data=True)).most_common())
     print("Quan hệ:", G.number_of_edges(), Counter(d["relation"] for *_, d in G.edges(data=True)).most_common())
@@ -186,4 +190,6 @@ if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-embed", action="store_true", help="bỏ gộp bằng embedding và không tạo emb.npz (không cần Ollama)")
-    main(not ap.parse_args().no_embed)
+    ap.add_argument("--neo4j", action="store_true", help="lưu KG thẳng lên Neo4j (cần NEO4J_URI, NEO4J_PASSWORD), không tạo kg.pkl")
+    a = ap.parse_args()
+    main(not a.no_embed, "neo4j" if a.neo4j else "pickle")

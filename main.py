@@ -33,7 +33,7 @@ def main(argv):
         runpy.run_module("kb.thresholds", run_name="__main__")
     elif cmd == "kg":
         from kb.build_kg import main as f
-        f(embed_merge="--no-embed" not in rest)
+        f(embed_merge="--no-embed" not in rest, store="neo4j" if "--neo4j" in rest else "pickle")
     elif cmd == "neo4j-push":
         from kb.neo4j_store import push
         push()

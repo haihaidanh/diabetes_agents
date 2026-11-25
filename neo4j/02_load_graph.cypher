@@ -1,5 +1,8 @@
-// Generated from artifacts/kb/kg.pkl. Do not edit manually.
-// Load after 01_schema.cypher in a local Neo4j database.
+// ==============================================================================
+// KNOWLEDGE GRAPH FOR DIABETES MANAGEMENT SYSTEM
+// Scripts khởi tạo đồ thị tri thức y khoa (Entities & Relationships) trên Neo4j
+// Chạy sau 01_schema.cypher
+// ==============================================================================
 MATCH (n) DETACH DELETE n;
 
 MERGE (n:Entity {name: "Đái tháo đường"}) SET n.name = "Đái tháo đường", n.type = "Disease";
