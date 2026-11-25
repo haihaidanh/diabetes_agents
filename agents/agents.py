@@ -6,8 +6,8 @@ from pydantic import BaseModel
 
 import config
 from common.text import fmt, num, pct
+from dl import predictor
 from kb import kg_tools as K
-from ml import predictor
 
 from . import llm
 from .settings import SETTINGS

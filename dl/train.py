@@ -100,6 +100,20 @@ def main(csv_path=None, out_dir=None, target=None, exclude_screening=None):
     }
     with open(os.path.join(out_dir, "metrics_dl.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
+
+    # Đồng bộ sang artifacts/dl và artifacts/ml để mọi agent và giao diện đều nạp được ngay
+    for extra_dir in ["artifacts/dl", "artifacts/ml"]:
+        try:
+            os.makedirs(extra_dir, exist_ok=True)
+            for m in ("full", "screening"):
+                src = os.path.join(out_dir, f"model_{m}.pkl")
+                dst = os.path.join(extra_dir, f"model_{m}.pkl")
+                if os.path.abspath(src) != os.path.abspath(dst) and os.path.exists(src):
+                    import shutil
+                    shutil.copy2(src, dst)
+        except Exception:
+            pass
+
     return summary
 
 

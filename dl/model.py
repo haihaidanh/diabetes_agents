@@ -3,8 +3,19 @@ LUU Y: pickle ghi nho duong dan import 'dl.model', nen huan luyen va nap
 .pkl phai cung dung 'from dl.model import ...' (chay tu thu muc goc project)."""
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn as nn
+
+try:
+    import torch
+    import torch.nn as nn
+    _TORCH_AVAILABLE = True
+except ImportError:
+    torch = None
+    class _DummyModule:
+        def __init__(self, *args, **kwargs):
+            pass
+    nn = type("nn", (), {"Module": _DummyModule, "Sequential": _DummyModule,
+                         "Linear": _DummyModule, "ReLU": _DummyModule, "Dropout": _DummyModule})
+    _TORCH_AVAILABLE = False
 
 
 class DiabetesMLP(nn.Module):

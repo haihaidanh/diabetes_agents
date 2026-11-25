@@ -1,11 +1,11 @@
 """CLI: python main.py <lệnh>
-  train            huấn luyện mô hình ML (thêm --mlp nếu có torch)
+  train            huấn luyện mô hình Deep Learning MLP (PyTorch)
   parse            HTML -> chunks
   extract          chunks -> triples (LLM, chậm; --skip-llm để chỉ validate cache)
   thresholds       in các ngưỡng chẩn đoán trích được để duyệt
   kg               xây Knowledge Graph (--no-embed bỏ gộp bằng embedding)
   ask "câu hỏi"    hỏi một câu
-  ui               mở giao diện Gradio
+  ui               mở giao diện web
   eval             chạy ablation 4 cấu hình x 24 kịch bản
 """
 import sys
@@ -17,8 +17,8 @@ def main(argv):
         return
     cmd, rest = argv[0], argv[1:]
     if cmd == "train":
-        from ml.train import main as f
-        f(use_mlp="--mlp" in rest)
+        from dl.train import main as f
+        f()
     elif cmd == "parse":
         from kb.parse_html import main as f
         f()
