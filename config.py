@@ -11,7 +11,7 @@ ARTIFACTS = Path(os.getenv("ARTIFACTS_DIR", ROOT / "artifacts"))
 DL_DIR = Path(os.getenv("DL_DIR", ARTIFACTS / "dl"))        # Deep Learning models (model_full.pkl, model_screening.pkl)
 ML_DIR = DL_DIR                                             # Giữ tương thích ngược với các hàm cũ
 KB_DIR = ARTIFACTS / "kb"      # chunks_final.jsonl, kg.pkl, emb.npz, ents.json ...
-EVAL_DIR = ARTIFACTS / "eval"  # kết quả ablation
+EVAL_DIR = Path(os.getenv("EVAL_DIR", ARTIFACTS / "eval"))  # audit log và kết quả ablation
 
 LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5:3b")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3")

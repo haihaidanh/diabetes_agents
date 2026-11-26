@@ -17,18 +17,23 @@ _S: dict = {}
 
 
 def _load() -> dict:
-    if not _S:
+    global _S
+    if not _S or "ENTS" not in _S:
         kb = config.KB_DIR
-        # _S["G"] = pickle.load(open(kb / "kg.pkl", "rb"))
+        s = {}
+        # --- Nạp đồ thị (NetworkX pickle hoặc Neo4j Aura) ---
         if os.getenv("KG_BACKEND", "networkx") == "neo4j":
             from .neo4j_store import Neo4jGraph
-            _S["G"] = Neo4jGraph()
+            s["G"] = Neo4jGraph()
         else:
-            _S["G"] = pickle.load(open(kb / "kg.pkl", "rb"))
-        _S["CH"] = read_jsonl(kb / "chunks_final.jsonl")
+            s["G"] = pickle.load(open(kb / "kg.pkl", "rb"))
+
+        # --- Nạp chunk, embedding và danh sách thực thể ---
+        s["CH"] = read_jsonl(kb / "chunks_final.jsonl")
         z = np.load(kb / "emb.npz")
-        _S["E_ENT"], _S["E_CH"] = z["E_ent"], z["E_chunk"]
-        _S["ENTS"] = json.load(open(kb / "ents.json", encoding="utf-8"))
+        s["E_ENT"], s["E_CH"] = z["E_ent"], z["E_chunk"]
+        s["ENTS"] = json.load(open(kb / "ents.json", encoding="utf-8"))
+        _S = s
     return _S
 
 

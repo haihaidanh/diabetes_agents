@@ -53,4 +53,25 @@ def test_assess_flow(monkeypatch):
     setup(monkeypatch, ["Nguy cơ của bạn khoảng 10,0% [1]. Bạn nên gặp bác sĩ."])
     out = graph.run_case("Tôi nam 45 tuổi, BMI 29, không cao huyết áp. Nguy cơ thế nào?")
     ag = [t["agent"] for t in out["trace"]]
-    assert ag[:3] == ["supervisor", "intake", "risk"] and out["risk"]["probability"] == 0.1
+    assert ag[:2] == ["supervisor", "intake"]
+    assert set(ag[2:4]) == {"risk", "knowledge"}
+    assert ag[4:] == ["advisor", "critic", "finalize"]
+    assert out["risk"]["probability"] == 0.1
+
+
+def test_parallel_assess_waits_for_risk_intake_retry(monkeypatch):
+    setup(monkeypatch, ["Nguy cơ của bạn khoảng 20,0% [1]. Bạn nên gặp bác sĩ."])
+    calls = []
+
+    def screening_risk(_patient):
+        calls.append("risk")
+        return {"model": "screening", "probability": 0.2, "threshold": 0.3,
+                "label": "nguy cơ thấp", "needs_lab": True}
+
+    monkeypatch.setattr(A.predictor, "predict_risk", screening_risk)
+    out = graph.run_case("Tôi nam 45 tuổi, BMI 29, không cao huyết áp. Nguy cơ thế nào?")
+    agents = [trace["agent"] for trace in out["trace"]]
+
+    assert len(calls) == 2
+    assert agents.count("risk") == 2
+    assert agents.index("advisor") > agents.index("knowledge")

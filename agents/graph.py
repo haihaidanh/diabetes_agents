@@ -6,14 +6,17 @@
 """
 import re
 from functools import lru_cache
+from time import perf_counter
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import Send
 
 import config
 from common.text import read_jsonl
 
 from .agents import advisor_node, intake_node, knowledge_node, risk_node, supervisor_node
 from .critic import critic_node
+from .monitor import MonitorAgent
 from .settings import SETTINGS
 from .state import MAX_CRITIC, CaseState, traced
 
@@ -65,10 +68,25 @@ def finalize_node(state):
 
 
 after_supervisor = lambda s: "knowledge" if s.get("intent") == "ask" else "intake"
-after_intake = lambda s: "finalize" if s.get("ask_user") else "risk"
-after_risk = lambda s: "intake" if s.get("risk_request") else "knowledge"
+after_risk = lambda s: "intake" if s.get("risk_request") else "risk_complete"
 after_knowledge = lambda s: "advisor" if s.get("knowledge_done", True) else "knowledge"
 after_advisor = lambda s: "critic" if (s.get("draft") and SETTINGS["use_critic"]) else "finalize"
+
+
+def after_intake_parallel(state):
+    if state.get("ask_user"):
+        return "finalize"
+    if (state.get("counters") or {}).get("risk_asked", 0):
+        return "risk"
+    return [Send("risk", state), Send("knowledge_init", state)]
+
+
+def after_parallel_knowledge(state):
+    return "knowledge_parallel" if not state.get("knowledge_done", True) else "knowledge_complete"
+
+
+def _barrier_node(_state):
+    return {}
 
 
 def after_critic(s):
@@ -80,13 +98,20 @@ def after_critic(s):
 def build_graph():
     g = StateGraph(CaseState)
     for n, f in [("supervisor", supervisor_node), ("intake", intake_node), ("risk", risk_node), ("knowledge", knowledge_node),
+                 ("knowledge_init", knowledge_node), ("knowledge_parallel", knowledge_node),
+                 ("risk_complete", _barrier_node), ("knowledge_complete", _barrier_node),
+                 ("parallel_complete", _barrier_node),
                  ("advisor", advisor_node), ("critic", critic_node), ("finalize", finalize_node)]:
         g.add_node(n, f)
     g.add_edge(START, "supervisor")
     g.add_conditional_edges("supervisor", after_supervisor, ["intake", "knowledge"])
-    g.add_conditional_edges("intake", after_intake, ["risk", "finalize"])
-    g.add_conditional_edges("risk", after_risk, ["intake", "knowledge"])
+    g.add_conditional_edges("intake", after_intake_parallel, ["risk", "knowledge_init", "finalize"])
+    g.add_conditional_edges("risk", after_risk, ["intake", "risk_complete"])
     g.add_conditional_edges("knowledge", after_knowledge, ["knowledge", "advisor"])
+    g.add_conditional_edges("knowledge_init", after_parallel_knowledge, ["knowledge_parallel", "knowledge_complete"])
+    g.add_conditional_edges("knowledge_parallel", after_parallel_knowledge, ["knowledge_parallel", "knowledge_complete"])
+    g.add_edge(["risk_complete", "knowledge_complete"], "parallel_complete")
+    g.add_edge("parallel_complete", "advisor")
     g.add_conditional_edges("advisor", after_advisor, ["critic", "finalize"])
     g.add_conditional_edges("critic", after_critic, ["advisor", "finalize"])
     g.add_edge("finalize", END)
@@ -94,11 +119,19 @@ def build_graph():
 
 
 _GRAPH = None
+_MONITOR = MonitorAgent()
 
 
 def run_case(question: str, form: dict | None = None, patient: dict | None = None) -> dict:
     """Chạy một lượt hội thoại. `patient` là hồ sơ đã có từ lượt trước (hội thoại nhiều lượt)."""
     global _GRAPH
     _GRAPH = _GRAPH or build_graph()
-    return _GRAPH.invoke({"question": question, "form": form or {}, "patient": patient or {},
-                          "evidence": [], "counters": {}, "trace": []}, {"recursion_limit": 40})
+    started = perf_counter()
+    try:
+        result = _GRAPH.invoke({"question": question, "form": form or {}, "patient": patient or {},
+                                "evidence": [], "counters": {}, "trace": []}, {"recursion_limit": 40})
+    except Exception as exc:
+        _MONITOR.record({}, (perf_counter() - started) * 1000, error=type(exc).__name__)
+        raise
+    _MONITOR.record(result, (perf_counter() - started) * 1000)
+    return result

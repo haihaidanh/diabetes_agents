@@ -24,6 +24,8 @@ Các biến `LLM_NUM_CTX` (mặc định `2048` ở chế độ nhanh), `LLM_NUM
 thời gian giữ model trong RAM để tránh nạp lại giữa các câu hỏi.
 Đặt `FAST_MODE=0` để khôi phục cấu hình đầy đủ với KG và Critic.
 Đặt dữ liệu: `data/diabetes.csv` (hoặc biến môi trường `DIABETES_CSV`) và các trang HTML đã lưu vào `data/raw_html/`.
+Mỗi lượt chạy ghi một dòng audit không chứa câu hỏi hoặc hồ sơ sức khỏe vào `artifacts/eval/audit_log.jsonl`.
+Trên Kaggle, nếu thư mục mã nguồn chỉ đọc được, đặt `EVAL_DIR=/kaggle/working/artifacts/eval` trước khi chạy để lưu audit log ở vùng có thể ghi.
 
 ## Chạy theo thứ tự
 ```bash
