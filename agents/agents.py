@@ -271,9 +271,10 @@ def knowledge_node(state):
     p, ev = state.get("patient") or {}, list(state.get("evidence") or [])
     graph_edges = list((state.get("knowledge_graph") or {}).get("edges") or [])
     labs = state.get("lab_checks")
+    is_ask = state.get("intent") == "ask"
     if labs is None:                                     # đối chiếu xét nghiệm với ngưỡng trong KG bằng code, tất định
         labs = []
-        if kg_mode:
+        if kg_mode and not is_ask:                       # Chỉ đối chiếu ngưỡng xét nghiệm khi đánh giá nguy cơ cá nhân (assess/both)
             for feat, unit in (("HbA1c_level", "%"), ("blood_glucose_level", "mg/dL")):
                 if feat in p:
                     labs += K.explain_feature(feat, p[feat], unit).get("lab_checks", [])
@@ -283,7 +284,7 @@ def knowledge_node(state):
                        "quote": c["evidence"], "url": c["url"]})
     topic = state["question"]
     r = state.get("risk")
-    if r:
+    if r and not is_ask:
         topic += "\nYếu tố ảnh hưởng nguy cơ: " + ", ".join(f["feature"] for f in r["factors"][:3])
     hint = "" if rnd == 1 else f"\nVòng {rnd}: bằng chứng chưa đủ ({len(ev)}). Dùng từ khóa khác, thêm search_chunks hoặc neighbors của thực thể liên quan."
     tools = [K.link_entities, K.neighbors, K.drug_info, K.explain_feature, K.search_chunks] if kg_mode else [K.search_chunks]
@@ -298,12 +299,13 @@ def knowledge_node(state):
         # Resolve the top linked entities deterministically from the configured KG.
         linked = K.link_entities(state["question"], top_k=3)
         for entity in linked:
-            related = K.neighbors(entity["name"], limit=12)
+            # Tra cứu cả 2 chiều (both) để lấy được quan hệ của cả Disease, Lifestyle, Symptom, RiskFactor
+            related = K.neighbors(entity["name"], direction="both", limit=12)
             graph_edges.extend(graph_rows(related))
             rows.extend(harvest(related))
 
         # Thêm liên kết từ các yếu tố rủi ro của người dùng (SHAP / patient features) vào đồ thị
-        if r and r.get("factors"):
+        if r and not is_ask and r.get("factors"):
             for f in r["factors"][:2]:
                 feat_name = f.get("feature", "")
                 if feat_name:
@@ -314,7 +316,7 @@ def knowledge_node(state):
     if rnd == 1 and not rows:                            # dự phòng khi model không gọi công cụ
         if kg_mode:
             for e in K.link_entities(state["question"], 2):
-                fallback = K.neighbors(e["name"])
+                fallback = K.neighbors(e["name"], direction="both")
                 rows += harvest(fallback)
                 graph_edges.extend(graph_rows(fallback))
         rows += harvest(K.search_chunks(state["question"]))
@@ -327,9 +329,8 @@ def knowledge_node(state):
         e["id"] = i
     unique_edges = []
     seen_edges = set()
-    evidence_keys = {(e["quote"], e["url"]) for e in ev}
     for edge in graph_edges:
-        if (edge.get("evidence", ""), edge.get("url", "")) not in evidence_keys:
+        if not edge.get("subject") or not edge.get("object") or not edge.get("relation"):
             continue
         key = (edge["subject"], edge["relation"], edge["object"], edge.get("url", ""))
         if key not in seen_edges:
@@ -352,6 +353,7 @@ Thứ tự ý: câu đầu trả lời thẳng vào câu hỏi hoặc nêu kết
 Chỉ nêu ý liên quan trực tiếp tới câu hỏi, bỏ qua bằng chứng không liên quan. Không nhắc các từ kỹ thuật như SHAP, screening, bằng chứng; với yếu tố ảnh hưởng chỉ nêu 1-2 yếu tố nổi bật nếu có. Câu hỏi kiến thức thì trả lời trực tiếp, không nhắc mô hình dự đoán.
 Không mở đầu bằng các câu như "Tôi hiểu bạn muốn...", "Dựa trên các đoạn văn được cung cấp...", "Theo thông tin trên..." hoặc mô tả quá trình tổng hợp.
 Quy tắc bắt buộc:
+- Tuyệt đối KHÔNG viết các nhãn như 'Bằng chứng:', 'Lời khuyên:', 'Khuyến nghị:', 'Lưu ý:' ở đầu câu hoặc đầu đoạn văn. Trình bày tự nhiên thành các đoạn văn xuôi hoàn chỉnh.
 - Chỉ dùng số liệu có trong dữ liệu được cung cấp; chép xác suất đúng như chuỗi cho sẵn. Không bịa số.
 - Mỗi ý y khoa kèm trích dẫn [n] đúng số bằng chứng.
 - Không nêu liều thuốc, hàm lượng, số viên, số lần dùng.
@@ -365,11 +367,12 @@ Quy tắc bắt buộc:
 def facts(state) -> str:
     """Dữ kiện (đã được code kiểm soát) đưa cho Advisor."""
     p, r, L = state.get("patient") or {}, state.get("risk"), []
-    if p:
+    is_ask = state.get("intent") == "ask"
+    if p and not is_ask:
         L.append("HỒ SƠ: " + ", ".join(f"{k}={v}" for k, v in p.items() if k != "assumed"))
         if p.get("assumed"):
             L.append("GIẢ ĐỊNH: " + "; ".join(p["assumed"]))
-    if r:
+    if r and not is_ask:
         L.append(f"MÔ HÌNH ({r['model']}): xác suất {pct(r['probability'])}; ngưỡng phân loại {pct(r['threshold'])}; mô hình kết luận: {r['label']}")
         L.append("YẾU TỐ ẢNH HƯỞNG (SHAP): " + "; ".join(f"{f['feature']}={f['value']} ({f['direction']})" for f in r["factors"]))
         if r.get("needs_lab"):
@@ -378,9 +381,10 @@ def facts(state) -> str:
             L.append("GIẢ ĐỊNH: chỉ có một xét nghiệm nên xét nghiệm còn lại được thay bằng giá trị trung bình của dữ liệu huấn luyện.")
         if r.get("what_if"):
             L.append(f"WHAT-IF: {pct(r['what_if']['before'])} → {pct(r['what_if']['after'])} khi {r['what_if']['changes']}")
-    for c in state.get("lab_checks") or []:
-        L.append(f"ĐỐI CHIẾU: {c['test']} của người dùng = {fmt(c['value'])} so với ngưỡng {c['condition']} ({c['disease']}) → "
-                 f"{'ĐẠT ngưỡng chẩn đoán' if c['met'] else 'chưa đạt'}" + (f" [{c['assumption']}]" if c["assumption"] else ""))
+    if not is_ask:
+        for c in state.get("lab_checks") or []:
+            L.append(f"ĐỐI CHIẾU: {c['test']} của người dùng = {fmt(c['value'])} so với ngưỡng {c['condition']} ({c['disease']}) → "
+                     f"{'ĐẠT ngưỡng chẩn đoán' if c['met'] else 'chưa đạt'}" + (f" [{c['assumption']}]" if c["assumption"] else ""))
     L.append("BẰNG CHỨNG:")
     L += [f"[{e['id']}] {e['claim']} — \"{e['quote']}\"" for e in state.get("evidence") or []]
     return "\n".join(L)

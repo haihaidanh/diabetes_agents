@@ -32,6 +32,14 @@ META_OPENING = re.compile(
     r")",
     re.IGNORECASE,
 )
+LABEL_LEAK = re.compile(
+    r"(?:^|\n)\s*bằng chứng\s*:\s*.*?(?=\n\n|\n[A-ZÀ-Ỹ]|\Z)",
+    re.IGNORECASE | re.DOTALL,
+)
+ADVICE_PREFIX = re.compile(
+    r"(?:^|\n)\s*(?:lời khuyên|khuyến nghị)\s*:\s*",
+    re.IGNORECASE,
+)
 
 
 @lru_cache(maxsize=1)
@@ -50,6 +58,9 @@ def finalize_node(state):
     # Critic feedback is internal control data, never part of the user-facing answer.
     d = INTERNAL_FEEDBACK.split(d, maxsplit=1)[0].rstrip()
     d = META_OPENING.sub("", d, count=1).lstrip()
+    d = LABEL_LEAK.sub("", d)
+    d = ADVICE_PREFIX.sub("\n\n", d)
+    d = re.sub(r"\n{3,}", "\n\n", d).strip()
     cited = sorted({int(n) for n in re.findall(r"\[(\d+)\]", d) if int(n) in ev})
     note = (
         ""

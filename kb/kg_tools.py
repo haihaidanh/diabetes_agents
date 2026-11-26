@@ -109,11 +109,16 @@ def link_entities(text: str, top_k: int = 5) -> list:
 
 
 def neighbors(entity: str, relation: str = "", direction: str = "out", limit: int = 12) -> dict:
-    """Các quan hệ lân cận của một thực thể (direction: out | in), kèm câu trích và URL."""
+    """Các quan hệ lân cận của một thực thể (direction: out | in | both), kèm câu trích và URL."""
     G = graph()
     if entity not in G:
         return {"error": f"không có thực thể '{entity}'"}
-    it = G.out_edges(entity, data=True) if direction == "out" else G.in_edges(entity, data=True)
+    if direction == "both":
+        it = list(G.out_edges(entity, data=True)) + list(G.in_edges(entity, data=True))
+    elif direction == "in":
+        it = G.in_edges(entity, data=True)
+    else:
+        it = G.out_edges(entity, data=True)
     rows = [{"subject": a, "relation": d["relation"], "object": b, "evidence": d["evidence"], "url": d["url"]}
             for a, b, d in it if d["relation"] != "MAPS_TO" and (not relation or d["relation"] == relation)]
     return {"entity": entity, "edges": rows[:limit]}
