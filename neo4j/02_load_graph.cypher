@@ -1,9 +1,7 @@
-// ==============================================================================
-// KNOWLEDGE GRAPH FOR DIABETES MANAGEMENT SYSTEM
-// Scripts khởi tạo đồ thị tri thức y khoa (Entities & Relationships) trên Neo4j
-// Chạy sau 01_schema.cypher
-// ==============================================================================
-MATCH (n) DETACH DELETE n;
+// Local Neo4j demo data, exported from the project's knowledge graph.
+// Run 01_schema.cypher first, then execute this file in the local demo database.
+// This reset only removes this graph's :Entity nodes and their relationships.
+MATCH (n:Entity) DETACH DELETE n;
 
 MERGE (n:Entity {name: "Đái tháo đường"}) SET n.name = "Đái tháo đường", n.type = "Disease";
 MERGE (n:Entity {name: "Khát nước"}) SET n.name = "Khát nước", n.type = "Symptom";

@@ -10,6 +10,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 from PIL import Image
+import os
+import torch.nn.functional as F
+from concurrent.futures import ThreadPoolExecutor
 
 import config
 from .retina import SmallCNN, _last_conv, preprocess  # dùng lại tiền xử lý + CNN nhỏ
@@ -48,19 +51,27 @@ def build(n, arch="resnet18", pretrained=False):
 
 class _DS(torch.utils.data.Dataset):
     def __init__(self, items, cls, size, train):
-        self.items, self.cls, self.size, self.train = items, cls, size, train
+        self.cls, self.train = cls, train
+        self.y = [cls.index(c) for _, c in items]
+        def load(it):
+            return preprocess(Image.open(it[0]), size).half()
+        with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as ex:
+            self.x = list(ex.map(load, items))
 
     def __len__(self):
-        return len(self.items)
+        return len(self.y)
 
     def __getitem__(self, i):
-        p, c = self.items[i]
-        x = preprocess(Image.open(p), self.size)
+        x = self.x[i].float()
         if self.train:
             if np.random.rand() < .5:
                 x = x.flip(2)
-            x = x * (0.85 + 0.3 * np.random.rand()) + (np.random.rand() - .5) * .3   # đổi sáng/tương phản nhẹ (ảnh điện thoại)
-        return x.float(), self.cls.index(c)
+            s = x.shape[-1]
+            k = int(s * np.random.uniform(0.6, 1.0))              # zoom ngẫu nhiên 60–100%
+            a, b = np.random.randint(0, s - k + 1, 2)
+            x = F.interpolate(x[None, :, a:a + k, b:b + k], size=(s, s), mode="bilinear", align_corners=False)[0]
+            x = x * (0.85 + 0.3 * np.random.rand()) + (np.random.rand() - .5) * .3
+        return x, self.y[i]
 
 
 def train(sources: dict, arch="resnet18", epochs=8, size=224, bs=32, max_per_class=3000, seed=42):
@@ -153,7 +164,6 @@ def assess(image, cam_path=None) -> dict:
     res = {"label": meta["classes"][g], "confidence": round(float(prob[g]), 3), "uncertain": bool(prob[g] < THR),
            "probs": {c: round(float(p), 3) for c, p in zip(meta["classes"], prob)}}
     if cam_path:
-        import matplotlib; matplotlib.use("Agg")
         from matplotlib import cm
         cam = torch.relu((grads[0].mean((2, 3), keepdim=True) * feats[0]).sum(1))[0].detach().numpy()
         cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-9)

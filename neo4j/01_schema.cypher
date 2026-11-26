@@ -1,22 +1,12 @@
-// ==============================================================================
-// 01_SCHEMA.CYPHER: KHỞI TẠO CẤU TRÚC BẢNG VÀ CHỈ MỤC CHO KNOWLEDGE GRAPH (NEO4J)
-// ==============================================================================
+// Schema for the local diabetes knowledge graph.
+// All concepts use :Entity; their category is stored in the `type` property.
 
-// 1. Ràng buộc duy nhất (Unique Constraint) cho thực thể theo tên
+// The constraint also creates an index for Entity.name lookups.
 CREATE CONSTRAINT entity_name IF NOT EXISTS
 FOR (n:Entity) REQUIRE n.name IS UNIQUE;
 
-// 2. Tạo chỉ mục (Indexes) để tăng tốc độ tìm kiếm theo phân loại và thuộc tính
+// Entity categories (Disease, Drug, Symptom, ...) are values of n.type,
+// not separate Neo4j labels.
 CREATE INDEX entity_type_idx IF NOT EXISTS
 FOR (n:Entity) ON (n.type);
-
-CREATE INDEX disease_name_idx IF NOT EXISTS
-FOR (n:Disease) ON (n.name);
-
-CREATE INDEX drug_name_idx IF NOT EXISTS
-FOR (n:Drug) ON (n.name);
-
-CREATE INDEX symptom_name_idx IF NOT EXISTS
-FOR (n:Symptom) ON (n.name);
-
 
