@@ -53,27 +53,42 @@ def _titles() -> dict:
 
 def _vision_answer(prediction: dict) -> str:
     if prediction.get("uncertain"):
-        return "Chưa thể kết luận Có hay Không vì mô hình chưa đủ chắc chắn để phân loại dấu hiệu trong ảnh."
+        return (
+            "Chưa đủ cơ sở để đưa ra kết luận phân loại. "
+            "Độ tin cậy của mô hình đối với hình ảnh đầu vào chưa đạt ngưỡng yêu cầu."
+        )
 
     label = prediction.get("label")
+
     if label == "loet_ban_chan":
         return (
-            "Có, mô hình nhận diện dấu hiệu loét bàn chân trong ảnh; "
-            "đây chỉ là kết quả sàng lọc, không phải chẩn đoán."
+            "Phát hiện dấu hiệu hình ảnh nghi ngờ loét bàn chân do đái tháo đường. "
+            "Nếu có biểu hiện bất thường hoặc nghi ngờ mắc bệnh, "
+            "bạn nên đến cơ sở y tế để được thăm khám và đánh giá chính xác."
         )
+
     if label == "vong_mac_tieu_duong":
         return (
-            "Có, mô hình nhận diện dấu hiệu bệnh võng mạc đái tháo đường trong ảnh; "
-            "đây chỉ là kết quả sàng lọc, không phải chẩn đoán."
+            "Phát hiện dấu hiệu hình ảnh nghi ngờ bệnh võng mạc đái tháo đường. "
+            "Bạn nên đến cơ sở y tế hoặc khám chuyên khoa mắt để được kiểm tra, "
+            "đánh giá và xác định tình trạng bệnh chính xác."
         )
+
     if label == "ban_chan_binh_thuong":
         return (
-            "Không, mô hình không nhận diện dấu hiệu loét bàn chân trong ảnh; "
-            "kết quả này không loại trừ bệnh."
+            "Không phát hiện dấu hiệu hình ảnh đặc trưng của loét bàn chân "
+            "trong phạm vi phân loại của mô hình. "
+            "Kết quả này không loại trừ hoàn toàn nguy cơ mắc bệnh. "
+            "Nếu xuất hiện các triệu chứng bất thường, bạn nên đến cơ sở y tế "
+            "để được thăm khám."
         )
+
     return (
-        "Không, mô hình không xếp ảnh vào lớp loét bàn chân hoặc bệnh võng mạc đái tháo đường; "
-        "kết quả này không loại trừ bất thường khác."
+        "Không ghi nhận dấu hiệu thuộc các nhóm bệnh lý được mô hình hỗ trợ "
+        "phân loại trong hình ảnh đầu vào. "
+        "Kết quả này không đồng nghĩa với việc hình ảnh hoàn toàn bình thường. "
+        "Nếu có biểu hiện bất thường, bạn nên đến cơ sở y tế để được thăm khám "
+        "và đánh giá chính xác."
     )
 
 
