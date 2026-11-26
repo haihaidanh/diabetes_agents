@@ -19,8 +19,10 @@ from .critic import critic_node
 from .monitor import MonitorAgent
 from .settings import SETTINGS
 from .state import MAX_CRITIC, CaseState, traced
+from .vision_agent import vision_node
 
 DISCLAIMER = "⚠️ Kết quả chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ."
+VISION_DISCLAIMER = "Kết quả CNN chỉ hỗ trợ sàng lọc ảnh, không xác nhận hoặc loại trừ bệnh; bác sĩ cần đánh giá trực tiếp."
 INTERNAL_FEEDBACK = re.compile(
     r"(?:^|\n)\s*(?:lỗi cần sửa|các lỗi phải sửa|các lỗi cần sửa)\s*:?.*$",
     re.IGNORECASE | re.MULTILINE,
@@ -53,7 +55,10 @@ def _titles() -> dict:
 @traced("finalize")
 def finalize_node(state):
     if state.get("ask_user"):
-        return {"answer": state["ask_user"], "_decision": "hỏi lại người dùng"}
+        answer = state["ask_user"]
+        if state.get("vision_result"):
+            answer += "\n\n" + VISION_DISCLAIMER
+        return {"answer": answer, "_decision": "hỏi lại người dùng"}
     d, ev = state.get("draft", ""), {e["id"]: e for e in state.get("evidence") or []}
     # Critic feedback is internal control data, never part of the user-facing answer.
     d = INTERNAL_FEEDBACK.split(d, maxsplit=1)[0].rstrip()
@@ -75,10 +80,13 @@ def finalize_node(state):
         ans = d + note + (f"\n\n**Nguồn (Nhà thuốc Long Châu):**\n{src}" if src else "") + "\n\n" + DISCLAIMER
     else:                                        # trích dẫn vẫn được kiểm ngầm, chỉ ẩn khi hiển thị
         ans = re.sub(r"\s*\[\d+\]", "", d) + note + "\n\n" + DISCLAIMER
+    if state.get("vision_result"):
+        ans += "\n\n" + VISION_DISCLAIMER
     return {"answer": ans, "_decision": f"gắn {len(cited)} nguồn" if SETTINGS["show_sources"] else f"ẩn {len(cited)} nguồn"}
 
 
 after_supervisor = lambda s: "knowledge" if s.get("intent") == "ask" else "intake"
+after_start = lambda s: "vision" if s.get("vision_image") else "supervisor"
 after_risk = lambda s: "intake" if s.get("risk_request") else "risk_complete"
 after_knowledge = lambda s: "advisor" if s.get("knowledge_done", True) else "knowledge"
 after_advisor = lambda s: "critic" if (s.get("draft") and SETTINGS["use_critic"]) else "finalize"
@@ -112,9 +120,11 @@ def build_graph():
                  ("knowledge_init", knowledge_node), ("knowledge_parallel", knowledge_node),
                  ("risk_complete", _barrier_node), ("knowledge_complete", _barrier_node),
                  ("parallel_complete", _barrier_node),
-                 ("advisor", advisor_node), ("critic", critic_node), ("finalize", finalize_node)]:
+                 ("vision", vision_node), ("advisor", advisor_node), ("critic", critic_node),
+                 ("finalize", finalize_node)]:
         g.add_node(n, f)
-    g.add_edge(START, "supervisor")
+    g.add_conditional_edges(START, after_start, ["vision", "supervisor"])
+    g.add_edge("vision", "supervisor")
     g.add_conditional_edges("supervisor", after_supervisor, ["intake", "knowledge"])
     g.add_conditional_edges("intake", after_intake_parallel, ["risk", "knowledge_init", "finalize"])
     g.add_conditional_edges("risk", after_risk, ["intake", "risk_complete"])
@@ -133,13 +143,19 @@ _GRAPH = None
 _MONITOR = MonitorAgent()
 
 
-def run_case(question: str, form: dict | None = None, patient: dict | None = None) -> dict:
+def run_case(
+    question: str,
+    form: dict | None = None,
+    patient: dict | None = None,
+    vision_image: bytes | None = None,
+) -> dict:
     """Chạy một lượt hội thoại. `patient` là hồ sơ đã có từ lượt trước (hội thoại nhiều lượt)."""
     global _GRAPH
     _GRAPH = _GRAPH or build_graph()
     started = perf_counter()
     try:
         result = _GRAPH.invoke({"question": question, "form": form or {}, "patient": patient or {},
+                                "vision_image": vision_image,
                                 "evidence": [], "counters": {}, "trace": []}, {"recursion_limit": 40})
     except Exception as exc:
         _MONITOR.record({}, (perf_counter() - started) * 1000, error=type(exc).__name__)

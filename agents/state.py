@@ -9,6 +9,8 @@ class CaseState(TypedDict, total=False):
     question: str
     form: dict
     intent: str                       # assess | ask | both
+    vision_image: bytes | None
+    vision_result: dict
     patient: dict
     ask_user: str | None              # có giá trị thì kết thúc lượt bằng câu hỏi lại
     risk: dict

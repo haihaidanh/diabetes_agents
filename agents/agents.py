@@ -350,7 +350,7 @@ def knowledge_node(state):
 # ======================================================================= Advisor
 ASYS = """Bạn là Advisor, trả lời người dùng bằng tiếng Việt như một cuộc trò chuyện tự nhiên, liền mạch: 1 đến 3 đoạn văn ngắn (khoảng 80-150 từ). KHÔNG dùng tiêu đề, KHÔNG gạch đầu dòng, KHÔNG in đậm. Không tiết lộ bản nháp, Critic, lỗi nội bộ hoặc mục "Lỗi cần sửa".
 Thứ tự ý: câu đầu trả lời thẳng vào câu hỏi hoặc nêu kết luận chính; tiếp theo là lý do quan trọng nhất; cuối cùng là một lời khuyên cụ thể kèm việc gặp bác sĩ. Bắt đầu ngay bằng nội dung trả lời.
-Chỉ nêu ý liên quan trực tiếp tới câu hỏi, bỏ qua bằng chứng không liên quan. Không nhắc các từ kỹ thuật như SHAP, screening, bằng chứng; với yếu tố ảnh hưởng chỉ nêu 1-2 yếu tố nổi bật nếu có. Câu hỏi kiến thức thì trả lời trực tiếp, không nhắc mô hình dự đoán.
+Chỉ nêu ý liên quan trực tiếp tới câu hỏi, bỏ qua bằng chứng không liên quan. Không nhắc các từ kỹ thuật như SHAP, screening, bằng chứng; với yếu tố ảnh hưởng chỉ nêu 1-2 yếu tố nổi bật nếu có. Câu hỏi kiến thức thuần túy không kèm ảnh thì trả lời trực tiếp, không nhắc mô hình dự đoán.
 Không mở đầu bằng các câu như "Tôi hiểu bạn muốn...", "Dựa trên các đoạn văn được cung cấp...", "Theo thông tin trên..." hoặc mô tả quá trình tổng hợp.
 Quy tắc bắt buộc:
 - Tuyệt đối KHÔNG viết các nhãn như 'Bằng chứng:', 'Lời khuyên:', 'Khuyến nghị:', 'Lưu ý:' ở đầu câu hoặc đầu đoạn văn. Trình bày tự nhiên thành các đoạn văn xuôi hoàn chỉnh.
@@ -361,6 +361,8 @@ Quy tắc bắt buộc:
 - Nếu chỉ số xét nghiệm ĐẠT ngưỡng chẩn đoán trong khi mô hình báo nguy cơ thấp, nói rõ mâu thuẫn này.
 - Đường huyết so với ngưỡng lúc đói chỉ đúng nếu mẫu đo lúc đói: nói rõ giả định này bằng một câu ngắn.
 - Chỉ đề nghị làm HbA1c hoặc đường huyết khi đang đánh giá nguy cơ cá nhân hoặc khi câu hỏi trực tiếp liên quan đến xét nghiệm; không tự đưa khuyến nghị xét nghiệm vào câu hỏi về thuốc, triệu chứng hoặc tác dụng phụ.
+- Nếu có kết quả CNN ảnh, gọi đó là dự đoán sàng lọc của mô hình, không phải chẩn đoán; confidence không phải xác suất người dùng mắc bệnh. Nếu mô hình chưa đủ chắc chắn, nói rõ kết quả chưa kết luận được.
+- Lớp võng mạc chỉ dành cho ảnh đáy mắt; không suy luận bệnh võng mạc từ ảnh mắt chụp bên ngoài.
 - Luôn có lời khuyên gặp bác sĩ."""
 
 
@@ -385,6 +387,18 @@ def facts(state) -> str:
         for c in state.get("lab_checks") or []:
             L.append(f"ĐỐI CHIẾU: {c['test']} của người dùng = {fmt(c['value'])} so với ngưỡng {c['condition']} ({c['disease']}) → "
                      f"{'ĐẠT ngưỡng chẩn đoán' if c['met'] else 'chưa đạt'}" + (f" [{c['assumption']}]" if c["assumption"] else ""))
+    vision = state.get("vision_result")
+    if vision:
+        certainty = "chưa đủ chắc chắn" if vision.get("uncertain") else "kết quả phân loại"
+        L.append(
+            f"KẾT QUẢ CNN TRÊN ẢNH (chỉ sàng lọc): {vision.get('display_label', vision['label'])}; "
+            f"{certainty}; confidence của mô hình={pct(vision['confidence'])}. "
+            "Đây không phải xác suất mắc bệnh hay chẩn đoán."
+        )
+        probabilities = vision.get("probs") or {}
+        top = sorted(probabilities.items(), key=lambda item: item[1], reverse=True)[:3]
+        if top:
+            L.append("Các lớp mô hình: " + "; ".join(f"{label}={pct(score)}" for label, score in top))
     L.append("BẰNG CHỨNG:")
     L += [f"[{e['id']}] {e['claim']} — \"{e['quote']}\"" for e in state.get("evidence") or []]
     return "\n".join(L)

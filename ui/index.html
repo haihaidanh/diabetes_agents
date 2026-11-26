@@ -679,6 +679,9 @@
                 <div><label class="f">Đường huyết (mg/dL)</label><input type="number" id="glu" min="0"
                         placeholder="VD: 150"></div>
             </div>
+                    <label class="f" for="visionImage">Ảnh bàn chân hoặc ảnh đáy mắt (tùy chọn)</label>
+                    <input type="file" id="visionImage" accept="image/png,image/jpeg,image/webp,image/bmp">
+                    <small class="meta">CNN sàng lọc loét bàn chân / bệnh võng mạc. Ảnh mắt cần là ảnh đáy mắt, không phải ảnh chụp bên ngoài.</small>
 
             <label class="f">Tăng huyết áp</label>
             <div class="seg">
@@ -720,6 +723,10 @@
             <div class="card hide" id="cRisk">
                 <h2>📊 Nguy cơ &amp; yếu tố ảnh hưởng</h2>
                 <div id="risk"></div>
+            </div>
+            <div class="card hide" id="cVision">
+                <h2>📷 Kết quả phân tích ảnh CNN</h2>
+                <div id="visionResult"></div>
             </div>
             <div class="hide" id="more">
                 <details id="dEv">
@@ -783,6 +790,33 @@
       <div class="shap"><h3>Yếu tố ảnh hưởng (SHAP) <small style="font-weight:400;color:#64748b">· đỏ: tăng nguy cơ, xanh: giảm nguy cơ</small></h3>${rows}</div>
       ${wi}
     </div>`;
+            card.classList.remove('hide');
+        }
+
+        const VISION_LABELS = {
+            loet_ban_chan: 'Dấu hiệu loét bàn chân',
+            ban_chan_binh_thuong: 'Không thấy loét bàn chân trong các lớp mô hình',
+            vong_mac_tieu_duong: 'Dấu hiệu bệnh võng mạc đái tháo đường',
+            binh_thuong_hoac_khac: 'Bình thường hoặc bất thường khác (không phân loại cụ thể)'
+        };
+
+        function renderVision(v) {
+            const card = $('cVision'), box = $('visionResult');
+            if (!v) { card.classList.add('hide'); box.innerHTML = ''; return; }
+            const label = VISION_LABELS[v.label] || v.display_label || String(v.label || '').replaceAll('_', ' ');
+            const probabilities = Object.entries(v.probs || {})
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, value]) => `<li>${esc(VISION_LABELS[name] || name.replaceAll('_', ' '))}: ${(value * 100).toFixed(1)}%</li>`)
+                .join('');
+            const cam = v.cam_data_url
+                ? `<img src="${esc(v.cam_data_url)}" alt="Grad-CAM làm nổi bật vùng ảnh mô hình chú ý" style="width:100%;max-width:420px;border-radius:12px;margin-top:12px">`
+                : '';
+            box.innerHTML = `
+                <div><b>${esc(label)}</b></div>
+                <div class="meta">${v.uncertain ? 'Chưa đủ chắc chắn' : 'Dự đoán sàng lọc'} · confidence mô hình ${(Number(v.confidence) * 100).toFixed(1)}%</div>
+                <details><summary>Xác suất các lớp</summary><ul>${probabilities}</ul></details>
+                ${cam}
+                <div class="meta">Grad-CAM chỉ minh họa vùng mô hình chú ý, không phải bằng chứng y khoa.</div>`;
             card.classList.remove('hide');
         }
 
@@ -872,6 +906,7 @@
 
         async function send() {
             const btn = $('send');
+            const visionImage = $('visionImage').files[0];
             const form = {
                 gender: pick('gender'), age: num('age'), bmi: num('bmi'), hypertension: flag('ht'),
                 heart_disease: flag('hd'), smoking_history: $('smoke').value, hba1c: num('hba1c'), glu: num('glu')
@@ -879,14 +914,14 @@
             const hasForm = Object.values(form).some(v => v !== null && v !== '');
             const question = $('q').value.trim() || (hasForm
                 ? 'Hãy đánh giá nguy cơ tiểu đường theo hồ sơ của tôi.'
-                : '');
+                : visionImage ? 'Hãy phân tích ảnh này có dấu hiệu biến chứng của bệnh tiểu đường không.' : '');
             if (!question) {
                 $('q').focus();
                 return;
             }
             btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Đang phân tích…';
             $('chatLog').insertAdjacentHTML('beforeend',
-                `<div class="message user">${esc(question)}</div>`);
+                `<div class="message user">${esc(question)}${visionImage ? '<br>📷 Đã gửi ảnh' : ''}</div>`);
             const typingId = `typing-${Date.now()}`;
             $('chatLog').insertAdjacentHTML('beforeend',
                 `<div class="message assistant typing" id="${typingId}" aria-label="AI đang trả lời">
@@ -898,21 +933,34 @@
                 question, patient,
                 form
             };
+            const requestOptions = { method: 'POST' };
+            if (visionImage) {
+                const data = new FormData();
+                data.append('question', question);
+                data.append('patient', JSON.stringify(patient));
+                data.append('form', JSON.stringify(form));
+                data.append('vision_image', visionImage);
+                requestOptions.body = data;
+            } else {
+                requestOptions.headers = { 'Content-Type': 'application/json' };
+                requestOptions.body = JSON.stringify(body);
+            }
             try {
-                const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const res = await fetch('/api/chat', requestOptions);
                 const d = await res.json();
                 $(typingId)?.remove();
                 if (d.error) {
                     $('chatLog').insertAdjacentHTML('beforeend',
                         `<div class="message assistant"><div class="err">⚠️ ${esc(d.error)}</div></div>`);
-                    $('cRisk').classList.add('hide'); $('more').classList.add('hide');
+                    $('cRisk').classList.add('hide'); $('cVision').classList.add('hide'); $('more').classList.add('hide');
                 } else {
                     patient = d.patient || patient;
                     conversation.push({ question, answer: d.answer || '' });
                     $('chatLog').insertAdjacentHTML('beforeend',
                         `<div class="message assistant">${DOMPurify.sanitize(marked.parse(d.answer || ''))}</div>`);
                     setDetailsForMode(d.knowledge_mode);
-                    renderRisk(d.risk); renderEvidence(d); renderTrace(d.trace); renderKnowledgeGraph(d.knowledge_graph);
+                    renderRisk(d.risk); renderVision(d.vision_result);
+                    renderEvidence(d); renderTrace(d.trace); renderKnowledgeGraph(d.knowledge_graph);
                     $('more').classList.remove('hide');
                     $('chatLog').lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
@@ -929,10 +977,12 @@
             conversation = [];
             $('q').value = '';
             $('chatLog').innerHTML = '';
+            $('visionImage').value = '';
+            $('visionResult').innerHTML = '';
             ['age', 'bmi', 'hba1c', 'glu'].forEach(i => $(i).value = '');
             $('smoke').value = '';
             ['gender', 'ht', 'hd'].forEach(n => document.querySelector(`input[name=${n}][value=""]`).checked = true);
-            ['cRisk', 'more'].forEach(i => $(i).classList.add('hide'));
+            ['cRisk', 'cVision', 'more'].forEach(i => $(i).classList.add('hide'));
         }
 
         $('send').onclick = send;

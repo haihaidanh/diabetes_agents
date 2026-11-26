@@ -1,7 +1,13 @@
 # Hệ đa agent tư vấn nguy cơ tiểu đường
 
-ML (XGBoost + hiệu chỉnh isotonic + SHAP) → Knowledge Graph từ Nhà thuốc Long Châu (NetworkX, không cần Neo4j) → 6 agent LangGraph
-(Supervisor, Intake, Risk, Knowledge, Advisor, Critic) chạy bằng Ollama (qwen3:8b, bge-m3), không cần API key.
+ML (XGBoost + hiệu chỉnh isotonic + SHAP) → Knowledge Graph từ Nhà thuốc Long Châu (NetworkX, không cần Neo4j) → 7 agent LangGraph
+(Supervisor, Intake, Risk, Knowledge, Vision, Advisor, Critic) chạy bằng Ollama (qwen3:8b, bge-m3), không cần API key.
+
+Giao diện web hỗ trợ tải ảnh bàn chân hoặc ảnh đáy mắt. CNN ResNet18 trong
+`artifacts/perception/vision_cnn.pt` phân loại loét bàn chân, bàn chân không loét,
+bệnh võng mạc đái tháo đường và nhóm bình thường/khác; kết quả cùng Grad-CAM được
+đưa vào Advisor để giải thích. Ảnh mắt cần là ảnh đáy mắt, không phải ảnh chụp mắt
+bên ngoài. Đây chỉ là sàng lọc, không thay thế chẩn đoán của bác sĩ.
 
 ## Chuẩn bị
 ```bash
@@ -35,7 +41,7 @@ python main.py extract               # LLM trích triples (lâu, có cache llm_c
 python main.py thresholds            # xem ngưỡng chẩn đoán trích được để duyệt
 python main.py kg                    # -> kg.pkl, precision_sample.csv
 python main.py ask "Metformin có tác dụng phụ gì?"
-python main.py ui                    # Gradio
+python main.py ui                    # Flask web app
 python main.py eval                  # ablation 4 cấu hình x 24 kịch bản -> artifacts/eval/ablation.csv
 python -m pytest                     # test không cần Ollama
 ```

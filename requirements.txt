@@ -11,9 +11,12 @@ lxml
 pydantic
 ollama
 langgraph
+flask
 gradio
+Pillow
 pytest
 neo4j
 pypdf
 tqdm
-# tuỳ chọn: torch (MLP)
+torch
+torchvision

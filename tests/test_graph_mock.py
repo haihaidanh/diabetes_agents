@@ -1,5 +1,5 @@
 """Chạy cả đồ thị với LLM / mô hình / KG giả để kiểm tra định tuyến."""
-from agents import agents as A, critic, graph, llm
+from agents import agents as A, critic, graph, llm, vision_agent
 from agents.settings import SETTINGS
 
 
@@ -75,3 +75,28 @@ def test_parallel_assess_waits_for_risk_intake_retry(monkeypatch):
     assert len(calls) == 2
     assert agents.count("risk") == 2
     assert agents.index("advisor") > agents.index("knowledge")
+
+
+def test_uploaded_image_runs_vision_before_advisor(monkeypatch):
+    setup(monkeypatch, ["Mô hình ảnh phát hiện một dấu hiệu cần bác sĩ kiểm tra."])
+    monkeypatch.setitem(SETTINGS, "use_critic", False)
+    prediction = {
+        "label": "loet_ban_chan",
+        "display_label": "Dấu hiệu loét bàn chân",
+        "confidence": 0.82,
+        "uncertain": False,
+        "probs": {"loet_ban_chan": 0.82, "ban_chan_binh_thuong": 0.18},
+        "cam_data_url": "data:image/png;base64,dGVzdA==",
+    }
+    monkeypatch.setattr(vision_agent, "_assess_image", lambda image: prediction)
+
+    out = graph.run_case(
+        "Ảnh này có dấu hiệu biến chứng tiểu đường không?",
+        vision_image=b"fake-image",
+    )
+
+    assert out["trace"][0]["agent"] == "vision"
+    assert out["vision_image"] is None
+    assert out["vision_result"]["label"] == "loet_ban_chan"
+    assert "KẾT QUẢ CNN TRÊN ẢNH" in A.facts({"vision_result": prediction})
+    assert "Kết quả CNN chỉ hỗ trợ sàng lọc ảnh" in out["answer"]
