@@ -99,4 +99,31 @@ def test_uploaded_image_runs_vision_before_advisor(monkeypatch):
     assert out["vision_image"] is None
     assert out["vision_result"]["label"] == "loet_ban_chan"
     assert "KẾT QUẢ CNN TRÊN ẢNH" in A.facts({"vision_result": prediction})
-    assert "Kết quả CNN chỉ hỗ trợ sàng lọc ảnh" in out["answer"]
+    assert out["answer"] == (
+        "Có, mô hình nhận diện dấu hiệu loét bàn chân trong ảnh; "
+        "đây chỉ là kết quả sàng lọc, không phải chẩn đoán."
+    )
+    assert [trace["agent"] for trace in out["trace"]][-1] == "finalize"
+
+
+def test_vision_answer_is_no_or_uncertain_when_appropriate():
+    negative = graph.finalize_node({
+        "vision_result": {
+            "label": "ban_chan_binh_thuong",
+            "confidence": 0.993,
+            "uncertain": False,
+        },
+    })
+    assert negative["answer"].startswith("Không,")
+    assert negative["answer"].count(".") == 1
+    assert "không loại trừ bệnh" in negative["answer"]
+
+    uncertain = graph.finalize_node({
+        "vision_result": {
+            "label": "loet_ban_chan",
+            "confidence": 0.4,
+            "uncertain": True,
+        },
+    })
+    assert uncertain["answer"].startswith("Chưa thể kết luận Có hay Không")
+    assert uncertain["answer"].count(".") == 1

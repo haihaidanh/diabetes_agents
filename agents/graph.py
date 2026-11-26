@@ -22,7 +22,6 @@ from .state import MAX_CRITIC, CaseState, traced
 from .vision_agent import vision_node
 
 DISCLAIMER = "⚠️ Kết quả chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ."
-VISION_DISCLAIMER = "Kết quả CNN chỉ hỗ trợ sàng lọc ảnh, không xác nhận hoặc loại trừ bệnh; bác sĩ cần đánh giá trực tiếp."
 INTERNAL_FEEDBACK = re.compile(
     r"(?:^|\n)\s*(?:lỗi cần sửa|các lỗi phải sửa|các lỗi cần sửa)\s*:?.*$",
     re.IGNORECASE | re.MULTILINE,
@@ -52,13 +51,41 @@ def _titles() -> dict:
         return {}
 
 
+def _vision_answer(prediction: dict) -> str:
+    if prediction.get("uncertain"):
+        return "Chưa thể kết luận Có hay Không vì mô hình chưa đủ chắc chắn để phân loại dấu hiệu trong ảnh."
+
+    label = prediction.get("label")
+    if label == "loet_ban_chan":
+        return (
+            "Có, mô hình nhận diện dấu hiệu loét bàn chân trong ảnh; "
+            "đây chỉ là kết quả sàng lọc, không phải chẩn đoán."
+        )
+    if label == "vong_mac_tieu_duong":
+        return (
+            "Có, mô hình nhận diện dấu hiệu bệnh võng mạc đái tháo đường trong ảnh; "
+            "đây chỉ là kết quả sàng lọc, không phải chẩn đoán."
+        )
+    if label == "ban_chan_binh_thuong":
+        return (
+            "Không, mô hình không nhận diện dấu hiệu loét bàn chân trong ảnh; "
+            "kết quả này không loại trừ bệnh."
+        )
+    return (
+        "Không, mô hình không xếp ảnh vào lớp loét bàn chân hoặc bệnh võng mạc đái tháo đường; "
+        "kết quả này không loại trừ bất thường khác."
+    )
+
+
 @traced("finalize")
 def finalize_node(state):
     if state.get("ask_user"):
-        answer = state["ask_user"]
-        if state.get("vision_result"):
-            answer += "\n\n" + VISION_DISCLAIMER
-        return {"answer": answer, "_decision": "hỏi lại người dùng"}
+        return {"answer": state["ask_user"], "_decision": "hỏi lại người dùng"}
+    if state.get("vision_result"):
+        return {
+            "answer": _vision_answer(state["vision_result"]),
+            "_decision": "trả lời trực tiếp theo kết quả phân loại ảnh",
+        }
     d, ev = state.get("draft", ""), {e["id"]: e for e in state.get("evidence") or []}
     # Critic feedback is internal control data, never part of the user-facing answer.
     d = INTERNAL_FEEDBACK.split(d, maxsplit=1)[0].rstrip()
@@ -80,8 +107,6 @@ def finalize_node(state):
         ans = d + note + (f"\n\n**Nguồn (Nhà thuốc Long Châu):**\n{src}" if src else "") + "\n\n" + DISCLAIMER
     else:                                        # trích dẫn vẫn được kiểm ngầm, chỉ ẩn khi hiển thị
         ans = re.sub(r"\s*\[\d+\]", "", d) + note + "\n\n" + DISCLAIMER
-    if state.get("vision_result"):
-        ans += "\n\n" + VISION_DISCLAIMER
     return {"answer": ans, "_decision": f"gắn {len(cited)} nguồn" if SETTINGS["show_sources"] else f"ẩn {len(cited)} nguồn"}
 
 
@@ -89,7 +114,11 @@ after_supervisor = lambda s: "knowledge" if s.get("intent") == "ask" else "intak
 after_start = lambda s: "vision" if s.get("vision_image") else "supervisor"
 after_risk = lambda s: "intake" if s.get("risk_request") else "risk_complete"
 after_knowledge = lambda s: "advisor" if s.get("knowledge_done", True) else "knowledge"
-after_advisor = lambda s: "critic" if (s.get("draft") and SETTINGS["use_critic"]) else "finalize"
+after_advisor = lambda s: (
+    "finalize"
+    if s.get("vision_result")
+    else "critic" if (s.get("draft") and SETTINGS["use_critic"]) else "finalize"
+)
 
 
 def after_intake_parallel(state):

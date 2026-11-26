@@ -172,6 +172,7 @@
 
         .actions {
             display: flex;
+            align-items: center;
             gap: 10px;
             margin-top: 12px
         }
@@ -199,6 +200,22 @@
         #send:disabled {
             opacity: .6;
             cursor: wait
+        }
+
+        #attach {
+            flex: 0 0 auto;
+            background: #e0f2f1;
+            color: #0f766e
+        }
+
+        #selectedImageName {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            color: var(--muted);
+            font-size: .8rem;
+            text-overflow: ellipsis;
+            white-space: nowrap
         }
 
         #reset {
@@ -277,6 +294,16 @@
             color: #fff;
             background: linear-gradient(120deg, #0d9488, #2563eb);
             border-bottom-right-radius: 4px
+        }
+
+        .message.user .sent-image {
+            display: block;
+            width: auto;
+            max-width: min(100%, 320px);
+            max-height: 260px;
+            margin-top: 8px;
+            border-radius: 10px;
+            object-fit: contain
         }
 
         .message.assistant {
@@ -679,10 +706,6 @@
                 <div><label class="f">Đường huyết (mg/dL)</label><input type="number" id="glu" min="0"
                         placeholder="VD: 150"></div>
             </div>
-                    <label class="f" for="visionImage">Ảnh bàn chân hoặc ảnh đáy mắt (tùy chọn)</label>
-                    <input type="file" id="visionImage" accept="image/png,image/jpeg,image/webp,image/bmp">
-                    <small class="meta">CNN sàng lọc loét bàn chân / bệnh võng mạc. Ảnh mắt cần là ảnh đáy mắt, không phải ảnh chụp bên ngoài.</small>
-
             <label class="f">Tăng huyết áp</label>
             <div class="seg">
                 <label><input type="radio" name="ht" value="" checked><span>Không chọn</span></label>
@@ -714,9 +737,13 @@
                 <div class="chat-composer">
                     <textarea id="q" placeholder="Nhập câu hỏi của bạn..."></textarea>
                     <div class="actions">
+                        <input type="file" id="visionImage" accept="image/png,image/jpeg,image/webp,image/bmp" hidden>
+                        <button id="attach" type="button" title="Chọn ảnh bàn chân hoặc ảnh đáy mắt">📎 Ảnh</button>
+                        <span id="selectedImageName"></span>
                         <button id="send">Gửi</button>
                         <button id="reset">Làm mới</button>
                     </div>
+                    <small class="meta">Ảnh mắt cần là ảnh đáy mắt, không phải ảnh chụp bên ngoài.</small>
                     <div class="chips" id="chips"></div>
                 </div>
             </div>
@@ -754,6 +781,7 @@
         const flag = n => { const v = pick(n); return v === '' ? null : Number(v); };
         let patient = {};
         let conversation = [];
+        let chatImageUrls = [];
 
         const EXAMPLES = [
             "Triệu chứng của bệnh tiểu đường tuýp 2 là gì?",
@@ -912,16 +940,22 @@
                 heart_disease: flag('hd'), smoking_history: $('smoke').value, hba1c: num('hba1c'), glu: num('glu')
             };
             const hasForm = Object.values(form).some(v => v !== null && v !== '');
-            const question = $('q').value.trim() || (hasForm
-                ? 'Hãy đánh giá nguy cơ tiểu đường theo hồ sơ của tôi.'
-                : visionImage ? 'Hãy phân tích ảnh này có dấu hiệu biến chứng của bệnh tiểu đường không.' : '');
+            const question = $('q').value.trim() || (visionImage
+                ? 'Hãy phân tích ảnh này có dấu hiệu biến chứng của bệnh tiểu đường không.'
+                : hasForm ? 'Hãy đánh giá nguy cơ tiểu đường theo hồ sơ của tôi.' : '');
             if (!question) {
                 $('q').focus();
                 return;
             }
             btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Đang phân tích…';
+            const imagePreviewUrl = visionImage ? URL.createObjectURL(visionImage) : '';
+            if (imagePreviewUrl) chatImageUrls.push(imagePreviewUrl);
             $('chatLog').insertAdjacentHTML('beforeend',
-                `<div class="message user">${esc(question)}${visionImage ? '<br>📷 Đã gửi ảnh' : ''}</div>`);
+                `<div class="message user">${esc(question)}${imagePreviewUrl
+                    ? `<img class="sent-image" src="${esc(imagePreviewUrl)}" alt="Ảnh người dùng gửi">`
+                    : ''}</div>`);
+            $('visionImage').value = '';
+            $('selectedImageName').textContent = '';
             const typingId = `typing-${Date.now()}`;
             $('chatLog').insertAdjacentHTML('beforeend',
                 `<div class="message assistant typing" id="${typingId}" aria-label="AI đang trả lời">
@@ -975,6 +1009,8 @@
         function resetAll() {
             patient = {};
             conversation = [];
+            chatImageUrls.forEach(url => URL.revokeObjectURL(url));
+            chatImageUrls = [];
             $('q').value = '';
             $('chatLog').innerHTML = '';
             $('visionImage').value = '';
@@ -986,6 +1022,10 @@
         }
 
         $('send').onclick = send;
+        $('attach').onclick = () => $('visionImage').click();
+        $('visionImage').addEventListener('change', () => {
+            $('selectedImageName').textContent = $('visionImage').files[0]?.name || '';
+        });
         $('reset').onclick = resetAll;
         $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
     </script>
