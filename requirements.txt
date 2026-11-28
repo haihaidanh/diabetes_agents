@@ -20,3 +20,4 @@ pypdf
 tqdm
 torch
 torchvision
+python-telegram-bot>=21,<23

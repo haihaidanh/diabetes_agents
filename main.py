@@ -51,6 +51,9 @@ def main(argv):
     elif cmd == "eval":
         from evaluation.run_ablation import main as f
         f()
+    elif cmd == "telegram": 
+        from ui.telegram_bot import main as bot_main; 
+        bot_main()
     else:
         print(__doc__)
 
